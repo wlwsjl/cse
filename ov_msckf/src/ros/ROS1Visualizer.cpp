@@ -121,6 +121,8 @@ ROS1Visualizer::ROS1Visualizer(std::shared_ptr<ros::NodeHandle> nh, std::shared_
       of_state_gt << "# timestamp(s) q p v bg ba cam_imu_dt num_cam cam0_k cam0_d cam0_rot cam0_trans .... etc" << std::endl;
     }
   }
+
+  bag_vio_traj.open("/home/junlin/CSE/bag_vio_traj.bag", rosbag::bagmode::Write);
 }
 
 void ROS1Visualizer::setup_subscribers(std::shared_ptr<ov_core::YamlParser> parser) {
@@ -532,6 +534,8 @@ void ROS1Visualizer::publish_state() {
     }
   }
   pub_poseimu.publish(poseIinM);
+
+  bag_vio_traj.write("/vio_odo", poseIinM.header.stamp, poseIinM);
 
   //=========================================================
   //=========================================================

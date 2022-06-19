@@ -31,6 +31,7 @@
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
 #include <ros/ros.h>
+#include <rosbag/bag.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/Imu.h>
@@ -189,6 +190,8 @@ protected:
   // Files and if we should save total state
   bool save_total_state;
   std::ofstream of_state_est, of_state_std, of_state_gt;
+
+  rosbag::Bag bag_vio_traj;
 };
 
 } // namespace ov_msckf

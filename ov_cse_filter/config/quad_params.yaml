@@ -1,0 +1,13 @@
+useMethod: 3
+
+imu:
+  gyroscope_noise_density: 1.0e-3      # [ rad / s / sqrt(Hz) ]   ( gyro "white noise" )
+  gyroscope_random_walk: 1.0e-4        # [ rad / s^2 / sqrt(Hz) ] ( gyro bias diffusion )
+  accelerometer_noise_density: 1.0e-2  # [ m / s^2 / sqrt(Hz) ]   ( accel "white noise" )
+  accelerometer_random_walk: 1.0e-3    # [ m / s^3 / sqrt(Hz) ].  ( accel bias diffusion )
+
+# UKF tuning parameters
+UKF:
+    alpha: 0.4 
+    beta:  2.0
+    kappa: 0.0

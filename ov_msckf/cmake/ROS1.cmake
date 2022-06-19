@@ -115,6 +115,9 @@ if (catkin_FOUND AND ENABLE_ROS)
             RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
     )
 
+    add_executable(create_bag src/create_bag.cpp)
+    target_link_libraries(create_bag ov_msckf_lib ${thirdparty_libraries})
+
     add_executable(run_subscribe_msckf src/run_subscribe_msckf.cpp)
     target_link_libraries(run_subscribe_msckf ov_msckf_lib ${thirdparty_libraries})
     install(TARGETS run_subscribe_msckf

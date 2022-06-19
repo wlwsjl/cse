@@ -1,0 +1,12 @@
+%YAML:1.0
+
+#optimization parameters
+max_solver_time: 0.02  # max solver itration time (ms), to guarantee real time
+max_num_iterations: 5   # max solver itrations, to guarantee real time
+
+#imu parameters       The more accurate parameters you provide, the better performance
+acc_n: 1.0e-1       # accelerometer measurement noise standard deviation. 
+gyr_n: 1.0e-2       # gyroscope measurement noise standard deviation.     
+acc_w: 1.0e-1       # accelerometer bias random work noise standard deviation.  
+gyr_w: 1.0e-2       # gyroscope bias random work noise standard deviation.     
+g_norm: 9.81007     # gravity magnitude

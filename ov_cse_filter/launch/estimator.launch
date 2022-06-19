@@ -1,0 +1,14 @@
+<launch>
+    <!-- <arg name="use_Method" default="1"/> -->
+    <arg name="model" default="quadrotor"/>
+
+    <group ns="$(arg model)">
+        <node pkg="ov_cse_filter"
+            type="dynamic_estimator_batch"
+            name="dynamic_estimator_batch"
+            output="screen">
+            <!-- <rosparam file="$(find ov_cse_filter)/config/quad_params.yaml"/> -->
+            <!-- <param name="useMethod" value="$(arg use_Method)"/> -->
+        </node>
+    </group>
+</launch>
