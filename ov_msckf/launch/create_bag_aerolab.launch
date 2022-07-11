@@ -1,0 +1,16 @@
+<launch>
+    <arg name="dataset"     default="dataset3" />
+    <arg name="bag"         default="/home/junlin/$(arg dataset).bag" />
+    <arg name="path_gt1"     default="/home/junlin/vicon2gt/GI/1/$(arg dataset).csv" />
+    <arg name="path_gt2"     default="/home/junlin/vicon2gt/GI/2/$(arg dataset).csv" />
+
+    <node name="create_bag_aerolab" pkg="ov_msckf" type="create_bag_aerolab" output="screen" clear_params="true" required="true">
+    <!-- <node name="create_bag_aerolab_optitrack" pkg="ov_msckf" type="create_bag_aerolab_optitrack" output="screen" clear_params="true" required="true"> -->
+    <!-- <node name="create_bag_aerolab_optitrack_opt" pkg="ov_msckf" type="create_bag_aerolab_optitrack_opt" output="screen" clear_params="true" required="true"> -->
+        <param name="path_gt1"        type="str" value="$(arg path_gt1)" />
+        <param name="path_gt2"        type="str" value="$(arg path_gt2)" />
+        <param name="path_bag"        type="str" value="$(arg bag)" />
+    </node>
+    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find ov_msckf)/launch/display_cse.rviz" />
+    
+</launch>

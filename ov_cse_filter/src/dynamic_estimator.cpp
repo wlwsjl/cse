@@ -80,10 +80,18 @@ void DynamicEstimator::Init()
   init_vars_.P0 = Eigen::Matrix<flt,NUM_STATES_TANGENT,NUM_STATES_TANGENT>::Zero();
 
   // imu noise covariance
-  flt gyro_noise = 1.0e-3;
-  flt gyro_bias_noise = 1.0e-4;
-  flt acc_noise = 1.0e-2;
-  flt acc_bias_noise = 1.0e-3;
+  // euroc
+  // flt gyro_noise = 1.0e-3;
+  // flt gyro_bias_noise = 1.0e-4;
+  // flt acc_noise = 1.0e-2;
+  // flt acc_bias_noise = 1.0e-3;
+
+  // lab
+  flt gyro_noise = 0.1;
+  flt gyro_bias_noise = 0.01;
+  flt acc_noise = 10.0;
+  flt acc_bias_noise = 0.01;
+
   consts_.Qx = Eigen::Matrix<flt, Qx_Dim, Qx_Dim>::Zero();
   consts_.Qx.block<3, 3>(0, 0) = consts_.eye3*std::pow(gyro_noise, 2);
   consts_.Qx.block<3, 3>(3, 3) = consts_.eye3*std::pow(gyro_bias_noise, 2);
@@ -91,10 +99,19 @@ void DynamicEstimator::Init()
   consts_.Qx.block<3, 3>(9, 9) = consts_.eye3*std::pow(acc_bias_noise, 2);
 
   // init_vars_.q   = quat::Identity();
-  init_vars_.q.w() = 0.591301;
-  init_vars_.q.x() = 0.021611;
-  init_vars_.q.y() = -0.805788;
-  init_vars_.q.z() = 0.024535;
+
+  // euroc
+  // init_vars_.q.w() = 0.591301;
+  // init_vars_.q.x() = 0.021611;
+  // init_vars_.q.y() = -0.805788;
+  // init_vars_.q.z() = 0.024535;
+
+  // lab
+  init_vars_.q.w() = 0.999836;
+  init_vars_.q.x() = 0.00206999;
+  init_vars_.q.y() = 0.00626433;
+  init_vars_.q.z() = -0.0168877;
+
   init_vars_.q.inverse();
   init_vars_.bg = vec3::Zero();
   init_vars_.v = vec3::Zero();

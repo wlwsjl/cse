@@ -38,7 +38,9 @@ void single_run(double position_sigma)
 
   // Load rosbag here, and find messages we can play
   std::string bag_folder = "/home/junlin/CSE/";
-  std::string path_to_bag = bag_folder + "data.bag";
+  // std::string path_to_bag = bag_folder + "data.bag";
+  std::string path_to_bag = bag_folder + "data_optitrack.bag";
+  // std::string path_to_bag = bag_folder + "data_euroc.bag";
   rosbag::Bag bag;
   bag.open(path_to_bag, rosbag::bagmode::Read);
 
@@ -123,6 +125,32 @@ void single_run(double position_sigma)
     }
 
     if (should_process_pose) {
+      static int cnt = -1;
+      cnt++;
+      if (cnt % 4 != 0)
+      {
+        // Move forward in time
+        msg_pose_current = msg_pose_next;
+        view_pose_iter++;
+        if (view_pose_iter != view_pose->end()) {
+          msg_pose_next = view_pose_iter->instantiate<geometry_msgs::PoseWithCovarianceStamped>();
+        }
+        else
+        {
+          break;
+        }
+        msg_relative_pos_current = msg_relative_pos_next;
+        view_relative_pos_iter++;
+        if (view_relative_pos_iter != view_relative_pos->end()) {
+          msg_relative_pos_next = view_relative_pos_iter->instantiate<geometry_msgs::PointStamped>();
+        }
+        else
+        {
+          break;
+        }
+        continue;
+      }
+
       bool have_found_pair = false;
       while (!have_found_pair && view_pose_iter != view_pose->end() &&
              view_relative_pos_iter != view_relative_pos->end()) {
@@ -170,12 +198,12 @@ void single_run(double position_sigma)
       Eigen::Matrix<double, 3, 3> R_I1_W = quat_2_Rot(q_I1_W);
 
       Eigen::Matrix<double, 3, 1> t_I2_I1;
-      t_I2_I1(0, 0) = msg_relative_pos_current->point.x;
-      t_I2_I1(1, 0) = msg_relative_pos_current->point.y;
-      t_I2_I1(2, 0) = msg_relative_pos_current->point.z;
-      // t_I2_I1(0, 0) = msg_relative_pos_current->point.x + distribution_rx_(generator_);
-      // t_I2_I1(1, 0) = msg_relative_pos_current->point.y + distribution_ry_(generator_);
-      // t_I2_I1(2, 0) = msg_relative_pos_current->point.z + distribution_rz_(generator_);
+      // t_I2_I1(0, 0) = msg_relative_pos_current->point.x;
+      // t_I2_I1(1, 0) = msg_relative_pos_current->point.y;
+      // t_I2_I1(2, 0) = msg_relative_pos_current->point.z;
+      t_I2_I1(0, 0) = msg_relative_pos_current->point.x + distribution_rx_(generator_);
+      t_I2_I1(1, 0) = msg_relative_pos_current->point.y + distribution_ry_(generator_);
+      t_I2_I1(2, 0) = msg_relative_pos_current->point.z + distribution_rz_(generator_);
 
       Eigen::Matrix<double, 3, 1> t_I2_W = t_I1_W + R_I1_W.transpose() * t_I2_I1;
 
@@ -191,8 +219,8 @@ void single_run(double position_sigma)
       Jacob.block(0, 3, 3, 3) = -R_I1_W.transpose() * skewSymmetric_d(t_I2_I1);
 
       Eigen::Matrix<double, 3, 3> covariance_position = Eigen::Matrix<double, 3, 3>::Zero();
-      covariance_position = Jacob * covariance_vio_pose * Jacob.transpose();
-      // covariance_position = Jacob * covariance_vio_pose * Jacob.transpose() + (position_sigma * position_sigma) * Eigen::Matrix<double, 3, 3>::Identity();
+      // covariance_position = Jacob * covariance_vio_pose * Jacob.transpose();
+      covariance_position = Jacob * covariance_vio_pose * Jacob.transpose() + (position_sigma * position_sigma) * Eigen::Matrix<double, 3, 3>::Identity();
 
       MeasPose cur_pos;
       cur_pos.r = t_I2_W.cast<flt>();

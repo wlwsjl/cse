@@ -110,10 +110,18 @@ void Estimator::processMeas(MeasPose &meas_pose)
         // use meas_pose to initialize
         Ps[frame_count] = meas_pose.r;
         Quaterniond q;
-        q.w() = 0.591301;
-        q.x() = 0.021611;
-        q.y() = -0.805788;
-        q.z() = 0.024535;
+        // euroc
+        // q.w() = 0.591301;
+        // q.x() = 0.021611;
+        // q.y() = -0.805788;
+        // q.z() = 0.024535;
+
+        // lab
+        q.w() = 0.999836;
+        q.x() = 0.00206999;
+        q.y() = 0.00626433;
+        q.z() = -0.0168877;
+
         Rs[frame_count] = q.toRotationMatrix().transpose();
         Vs[frame_count] = Vector3d::Zero();
         Bas[frame_count] = Vector3d::Zero();

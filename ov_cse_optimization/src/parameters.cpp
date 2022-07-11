@@ -51,8 +51,15 @@ void readParameters()
     SOLVER_TIME = 0.02;
     NUM_ITERATIONS = 5; 
 
-    ACC_N = 1.0e-1;
-    ACC_W = 1.0e-1;
-    GYR_N = 1.0e-2;
-    GYR_W = 1.0e-2;
+    // euroc
+    // ACC_N = 1.0e-1;
+    // ACC_W = 1.0e-1;
+    // GYR_N = 1.0e-2;
+    // GYR_W = 1.0e-2;
+
+    // lab
+    ACC_N = 10.0;
+    ACC_W = 0.01;
+    GYR_N = 0.1;
+    GYR_W = 0.01;
 }

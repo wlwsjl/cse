@@ -118,6 +118,15 @@ if (catkin_FOUND AND ENABLE_ROS)
     add_executable(create_bag src/create_bag.cpp)
     target_link_libraries(create_bag ov_msckf_lib ${thirdparty_libraries})
 
+    add_executable(create_bag_aerolab src/create_bag_aerolab.cpp)
+    target_link_libraries(create_bag_aerolab ov_msckf_lib ${thirdparty_libraries})
+
+    add_executable(create_bag_aerolab_optitrack src/create_bag_aerolab_optitrack.cpp)
+    target_link_libraries(create_bag_aerolab_optitrack ov_msckf_lib ${thirdparty_libraries})
+
+    add_executable(create_bag_aerolab_optitrack_opt src/create_bag_aerolab_optitrack_opt.cpp)
+    target_link_libraries(create_bag_aerolab_optitrack_opt ov_msckf_lib ${thirdparty_libraries})
+
     add_executable(run_subscribe_msckf src/run_subscribe_msckf.cpp)
     target_link_libraries(run_subscribe_msckf ov_msckf_lib ${thirdparty_libraries})
     install(TARGETS run_subscribe_msckf
