@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 3.3)
 
 # Find ROS build system
-find_package(catkin QUIET COMPONENTS roscpp rosbag tf std_msgs geometry_msgs sensor_msgs nav_msgs visualization_msgs image_transport cv_bridge ov_core ov_init)
+find_package(catkin QUIET COMPONENTS roscpp rosbag tf std_msgs gazebo_msgs geometry_msgs sensor_msgs nav_msgs visualization_msgs image_transport cv_bridge ov_core ov_init)
 
 # Describe ROS project
 option(ENABLE_ROS "Enable or disable building with ROS (if it is found)" ON)
 if (catkin_FOUND AND ENABLE_ROS)
     add_definitions(-DROS_AVAILABLE=1)
     catkin_package(
-            CATKIN_DEPENDS roscpp rosbag tf std_msgs geometry_msgs sensor_msgs nav_msgs visualization_msgs image_transport cv_bridge ov_core ov_init
+            CATKIN_DEPENDS roscpp rosbag tf std_msgs gazebo_msgs geometry_msgs sensor_msgs nav_msgs visualization_msgs image_transport cv_bridge ov_core ov_init
             INCLUDE_DIRS src/
             LIBRARIES ov_msckf_lib
     )
@@ -126,6 +126,12 @@ if (catkin_FOUND AND ENABLE_ROS)
 
     add_executable(create_bag_aerolab_optitrack_opt src/create_bag_aerolab_optitrack_opt.cpp)
     target_link_libraries(create_bag_aerolab_optitrack_opt ov_msckf_lib ${thirdparty_libraries})
+
+    add_executable(subscribe_gazebo src/subscribe_gazebo.cpp)
+    target_link_libraries(subscribe_gazebo ov_msckf_lib ${thirdparty_libraries})
+
+    add_executable(projection_test src/projection_test.cpp)
+    target_link_libraries(projection_test ov_msckf_lib ${thirdparty_libraries})
 
     add_executable(run_subscribe_msckf src/run_subscribe_msckf.cpp)
     target_link_libraries(run_subscribe_msckf ov_msckf_lib ${thirdparty_libraries})
