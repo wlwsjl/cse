@@ -38,8 +38,7 @@ void single_run(double position_sigma)
 
   // Load rosbag here, and find messages we can play
   std::string bag_folder = "/home/junlin/CSE/";
-  // std::string path_to_bag = bag_folder + "data.bag";
-  std::string path_to_bag = bag_folder + "data_optitrack.bag";
+  std::string path_to_bag = bag_folder + "data.bag";
   // std::string path_to_bag = bag_folder + "data_euroc.bag";
   rosbag::Bag bag;
   bag.open(path_to_bag, rosbag::bagmode::Read);
@@ -76,6 +75,7 @@ void single_run(double position_sigma)
   std::string pose_topic_name = "/vio_pose";
   std::string relative_position_topic_name = "/relative_position";
   std::string imu_topic_name = "/imu";
+  std::string target_pose_topic_name = "/target_pose";
   // Open our iterators
   auto view_pose = std::make_shared<rosbag::View>(bag, rosbag::TopicQuery(pose_topic_name), time_init, time_finish);
   auto view_pose_iter = view_pose->begin();
@@ -83,6 +83,8 @@ void single_run(double position_sigma)
   auto view_relative_pos_iter = view_relative_pos->begin();
   auto view_imu = std::make_shared<rosbag::View>(bag, rosbag::TopicQuery(imu_topic_name), time_init, time_finish);
   auto view_imu_iter = view_imu->begin();
+  auto view_target_pose = std::make_shared<rosbag::View>(bag, rosbag::TopicQuery(target_pose_topic_name), time_init, time_finish);
+  auto view_target_pose_iter = view_target_pose->begin();
 
   // Record the current measurement timestamps
   geometry_msgs::PoseWithCovarianceStamped::ConstPtr msg_pose_current;
@@ -91,6 +93,8 @@ void single_run(double position_sigma)
   geometry_msgs::PointStamped::ConstPtr msg_relative_pos_next;
   sensor_msgs::Imu::ConstPtr msg_imu_current;
   sensor_msgs::Imu::ConstPtr msg_imu_next;
+  geometry_msgs::PoseStamped::ConstPtr msg_target_pose_current;
+  geometry_msgs::PoseStamped::ConstPtr msg_target_pose_next;
 
   msg_pose_current = view_pose_iter->instantiate<geometry_msgs::PoseWithCovarianceStamped>();
   view_pose_iter++;
@@ -101,6 +105,9 @@ void single_run(double position_sigma)
   msg_imu_current = view_imu_iter->instantiate<sensor_msgs::Imu>();
   view_imu_iter++;
   msg_imu_next = view_imu_iter->instantiate<sensor_msgs::Imu>();
+  msg_target_pose_current = view_target_pose_iter->instantiate<geometry_msgs::PoseStamped>();
+  view_target_pose_iter++;
+  msg_target_pose_next = view_target_pose_iter->instantiate<geometry_msgs::PoseStamped>();
 
   double last_t = -1;
   double t = -1;
@@ -114,42 +121,50 @@ void single_run(double position_sigma)
 
     bool should_process_pose = false;
     bool should_process_imu = false;
+    bool should_process_target_pose = false;
     double time_pose = msg_pose_current->header.stamp.toSec();
     double time_imu = msg_imu_current->header.stamp.toSec();
+    double time_target_pose = msg_target_pose_current->header.stamp.toSec();
 
-    if (time_pose <= time_imu) {
-      should_process_pose = true;
+    if ((time_target_pose <= time_pose) && (time_target_pose <= time_imu)) {
+      should_process_target_pose = true;
     }
     else {
-      should_process_imu = true;
+      if (time_pose <= time_imu) {
+        should_process_pose = true;
+      }
+      else {
+        should_process_imu = true;
+      }
     }
 
+
     if (should_process_pose) {
-      static int cnt = -1;
-      cnt++;
-      if (cnt % 4 != 0)
-      {
-        // Move forward in time
-        msg_pose_current = msg_pose_next;
-        view_pose_iter++;
-        if (view_pose_iter != view_pose->end()) {
-          msg_pose_next = view_pose_iter->instantiate<geometry_msgs::PoseWithCovarianceStamped>();
-        }
-        else
-        {
-          break;
-        }
-        msg_relative_pos_current = msg_relative_pos_next;
-        view_relative_pos_iter++;
-        if (view_relative_pos_iter != view_relative_pos->end()) {
-          msg_relative_pos_next = view_relative_pos_iter->instantiate<geometry_msgs::PointStamped>();
-        }
-        else
-        {
-          break;
-        }
-        continue;
-      }
+      // static int cnt = -1;
+      // cnt++;
+      // if (cnt % 4 != 0)
+      // {
+      //   // Move forward in time
+      //   msg_pose_current = msg_pose_next;
+      //   view_pose_iter++;
+      //   if (view_pose_iter != view_pose->end()) {
+      //     msg_pose_next = view_pose_iter->instantiate<geometry_msgs::PoseWithCovarianceStamped>();
+      //   }
+      //   else
+      //   {
+      //     break;
+      //   }
+      //   msg_relative_pos_current = msg_relative_pos_next;
+      //   view_relative_pos_iter++;
+      //   if (view_relative_pos_iter != view_relative_pos->end()) {
+      //     msg_relative_pos_next = view_relative_pos_iter->instantiate<geometry_msgs::PointStamped>();
+      //   }
+      //   else
+      //   {
+      //     break;
+      //   }
+      //   continue;
+      // }
 
       bool have_found_pair = false;
       while (!have_found_pair && view_pose_iter != view_pose->end() &&
@@ -269,6 +284,38 @@ void single_run(double position_sigma)
       view_imu_iter++;
       if (view_imu_iter != view_imu->end()) {
          msg_imu_next = view_imu_iter->instantiate<sensor_msgs::Imu>();
+      }
+      else
+      {
+        break;
+      }
+    }
+
+    if (should_process_target_pose) {
+      t = msg_target_pose_current->header.stamp.toSec();
+      // printf("target_pose t %f\n", t);
+      MeasTargetPose cur_pose;
+      cur_pose.q.x() = msg_target_pose_current->pose.orientation.x;
+      cur_pose.q.y() = msg_target_pose_current->pose.orientation.y;
+      cur_pose.q.z() = msg_target_pose_current->pose.orientation.z;
+      cur_pose.q.w() = msg_target_pose_current->pose.orientation.w;
+      cur_pose.q.inverse();
+      cur_pose.r(0) = msg_target_pose_current->pose.position.x;
+      cur_pose.r(1) = msg_target_pose_current->pose.position.y;
+      cur_pose.r(2) = msg_target_pose_current->pose.position.z;
+      
+      cur_pose.cov.setZero();
+      // q
+      cur_pose.cov.block(0,0,3,3) = 1.0e-6 * mat3::Identity();
+      // r
+      cur_pose.cov.block(3,3,3,3) = 1.0e-4 * mat3::Identity();
+      
+      estimator.qr_callback(cur_pose);
+      // move forward in time
+      msg_target_pose_current = msg_target_pose_next;
+      view_target_pose_iter++;
+      if (view_target_pose_iter != view_target_pose->end()) {
+         msg_target_pose_next = view_target_pose_iter->instantiate<geometry_msgs::PoseStamped>();
       }
       else
       {

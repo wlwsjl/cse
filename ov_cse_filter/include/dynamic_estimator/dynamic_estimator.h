@@ -59,6 +59,14 @@ struct MeasPose
   mat3 cov;
 };
 
+struct MeasTargetPose
+{
+  // measurements for pose measurement update
+  vec3 r;
+  quat q;
+  mat6 cov;
+};
+
 // structs/classes to cleanly save sates, inputs, measurements, and initialization values
 struct InitVars
 {
@@ -66,6 +74,7 @@ struct InitVars
   // flags
   bool readyToInitialize = false;
   bool rInitialized = false;
+  bool qrInitialized = false;
   bool inputInitialized = false;
   // time
   ros::Time t;
@@ -162,6 +171,7 @@ public:
   std::vector<geometry_msgs::PoseStamped> poses_imu;
   void input_callback(Input &input_);
   void r_callback(MeasPose &meas_pose);
+  void qr_callback(MeasTargetPose &meas_pose);
 
   // member variables
   Consts consts_;
@@ -185,6 +195,7 @@ private:
 
   void predictEKF(StateWithCov& oldState,Input& input);
   void measUpdatePoseEKF(StateWithCov &oldState, MeasPose &meas);
+  void measUpdateTargetPoseEKF(StateWithCov &oldState, MeasTargetPose &meas);
   void stateAugmentation(MeasPose &meas_pose);
   void measUpdatePoseMSCKF();
   void pruneCloneStateBuffer();

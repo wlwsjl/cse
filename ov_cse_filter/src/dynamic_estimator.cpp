@@ -34,12 +34,6 @@ void DynamicEstimator::onInit(const ros::NodeHandle &nh)
   consts_.Qx.block<3, 3>(6, 6) = consts_.eye3*std::pow(acc_noise, 2);
   consts_.Qx.block<3, 3>(9, 9) = consts_.eye3*std::pow(acc_bias_noise, 2);
 
-  // init_vars_.q   = quat::Identity();
-  init_vars_.q.w() = 0.591301;
-  init_vars_.q.x() = 0.021611;
-  init_vars_.q.y() = -0.805788;
-  init_vars_.q.z() = 0.024535;
-  init_vars_.q.inverse();
   init_vars_.bg = vec3::Zero();
   init_vars_.v = vec3::Zero();
   init_vars_.ba = vec3::Zero();
@@ -98,21 +92,6 @@ void DynamicEstimator::Init()
   consts_.Qx.block<3, 3>(6, 6) = consts_.eye3*std::pow(acc_noise, 2);
   consts_.Qx.block<3, 3>(9, 9) = consts_.eye3*std::pow(acc_bias_noise, 2);
 
-  // init_vars_.q   = quat::Identity();
-
-  // euroc
-  // init_vars_.q.w() = 0.591301;
-  // init_vars_.q.x() = 0.021611;
-  // init_vars_.q.y() = -0.805788;
-  // init_vars_.q.z() = 0.024535;
-
-  // lab
-  init_vars_.q.w() = 0.999836;
-  init_vars_.q.x() = 0.00206999;
-  init_vars_.q.y() = 0.00626433;
-  init_vars_.q.z() = -0.0168877;
-
-  init_vars_.q.inverse();
   init_vars_.bg = vec3::Zero();
   init_vars_.v = vec3::Zero();
   init_vars_.ba = vec3::Zero();
@@ -383,6 +362,27 @@ void DynamicEstimator::measUpdatePoseEKF(StateWithCov &state, MeasPose &meas)
   state.P = (consts_.eye_NST-K_KF*H)*state.P*(consts_.eye_NST-K_KF*H).transpose() + K_KF*meas.cov.block(0,0,3,3)*K_KF.transpose();
 }
 
+void DynamicEstimator::measUpdateTargetPoseEKF(StateWithCov &state, MeasTargetPose &meas)
+{
+  // allocate matrices
+  Eigen::Matrix<flt,6,NUM_STATES_TANGENT> H = Eigen::Matrix<flt,6,NUM_STATES_TANGENT>::Zero();
+  H.block(0,q_index,3,q_dim) = consts_.eye3;
+  H.block(3,r_index,3,r_dim) = consts_.eye3;
+  // innovation
+  Eigen::Matrix<flt,6,1> Xhat;
+  Xhat.block(0,0,3,1) = qBoxMinus(meas.q,state.X.q);
+  Xhat.block(3,0,3,1) = meas.r-state.X.r;
+  // innovation covariance
+  Eigen::Matrix<flt,6,6> S_KF = meas.cov.block(0,0,6,6) + H*state.P*H.transpose();
+  // optimal kalman gain
+  Eigen::Matrix<flt,NUM_STATES_TANGENT,6> K_KF = state.P * H.transpose() * S_KF.inverse();
+  // updated state estimate and state covariance estimate (a posteriori)
+  Eigen::Matrix<flt,NUM_STATES_TANGENT,1> dX = K_KF*Xhat;
+  state.X.boxplus(dX);
+  state.P = (consts_.eye_NST-K_KF*H)*state.P*(consts_.eye_NST-K_KF*H).transpose() + K_KF*meas.cov.block(0,0,6,6)*K_KF.transpose();
+}
+
+
 void DynamicEstimator::measUpdatePoseMSCKF() {
 
   int window_size = state_.clone_states.size();
@@ -629,7 +629,8 @@ void DynamicEstimator::input_callback(Input &input_)
     init_vars_.t = input_.t;
     // check whether ready to initialize or not
     init_vars_.readyToInitialize = init_vars_.inputInitialized &&
-                                   init_vars_.rInitialized;
+                                   init_vars_.rInitialized &&
+                                   init_vars_.qrInitialized;
     if (init_vars_.readyToInitialize)
       initializeFilter(init_vars_);
   }
@@ -660,12 +661,42 @@ void DynamicEstimator::r_callback(MeasPose &meas_pose)
   else
   {
     // if not initialized, save msg, set flag that pose initialized
-    init_vars_.r   = meas_pose.r;
-    init_vars_.P0.block(r_index,r_index,r_dim,r_dim) = meas_pose.cov.block(0,0,3,3);
+    // init_vars_.r   = meas_pose.r;
+    // init_vars_.P0.block(r_index,r_index,r_dim,r_dim) = meas_pose.cov.block(0,0,3,3);
     init_vars_.rInitialized = true;
     // check whether ready to initialize or not
     init_vars_.readyToInitialize = init_vars_.inputInitialized &&
-                                   init_vars_.rInitialized;
+                                   init_vars_.rInitialized &&
+                                   init_vars_.qrInitialized;
+    if (init_vars_.readyToInitialize)
+      initializeFilter(init_vars_);
+  }
+}
+
+void DynamicEstimator::qr_callback(MeasTargetPose &meas_pose)
+{
+  if (initialized_)
+  {
+    // update state with either EKF or UKF
+    if (useMethod_ == 1)
+    {
+      measUpdateTargetPoseEKF(state_, meas_pose);
+    }
+    // publish updated estimates
+    // publishEstimates(state_);
+  }
+  else
+  {
+    // if not initialized, save msg, set flag that pose initialized
+    init_vars_.q   = meas_pose.q;
+    init_vars_.r   = meas_pose.r;
+    init_vars_.P0.block(q_index,q_index,q_dim,q_dim) = meas_pose.cov.block(0,0,3,3);
+    init_vars_.P0.block(r_index,r_index,r_dim,r_dim) = meas_pose.cov.block(3,3,3,3);
+    init_vars_.qrInitialized = true;
+    // check whether ready to initialize or not
+    init_vars_.readyToInitialize = init_vars_.inputInitialized &&
+                                   init_vars_.rInitialized &&
+                                   init_vars_.qrInitialized;
     if (init_vars_.readyToInitialize)
       initializeFilter(init_vars_);
   }

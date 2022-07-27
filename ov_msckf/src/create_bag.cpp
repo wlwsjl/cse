@@ -15,65 +15,65 @@ int main(int argc, char **argv) {
     auto nh = std::make_shared<ros::NodeHandle>("~");
     
     ////////////////////////////////////////////////////////////////////////////////////////////////////
-    ros::Publisher pub_pathimu;
-    pub_pathimu = nh->advertise<nav_msgs::Path>("/ov_msckf/pathimu", 1000);
-    ros::Rate loop_rate(1000);
+    // ros::Publisher pub_pathimu;
+    // pub_pathimu = nh->advertise<nav_msgs::Path>("/ov_msckf/pathimu", 1000);
+    // ros::Rate loop_rate(1000);
 
-    rosbag::Bag bag_vio_traj;
-    bag_vio_traj.open("/home/junlin/CSE/vio_result/bag_vio_traj.bag");  // BagMode is Read by default
-    std::string vio_topic_name = "/vio_odo";
-    std::vector<std::string> vio_topics;
-    vio_topics.push_back(vio_topic_name);
-    rosbag::View view_bag_vio(bag_vio_traj, rosbag::TopicQuery(vio_topics));
-    std::vector<geometry_msgs::PoseStamped> poses_imu;
-    std::vector<geometry_msgs::PoseWithCovarianceStamped> poses_cov_buffer;
+    // rosbag::Bag bag_vio_traj;
+    // bag_vio_traj.open("/home/junlin/CSE/vio_result/bag_vio_traj.bag");  // BagMode is Read by default
+    // std::string vio_topic_name = "/vio_odo";
+    // std::vector<std::string> vio_topics;
+    // vio_topics.push_back(vio_topic_name);
+    // rosbag::View view_bag_vio(bag_vio_traj, rosbag::TopicQuery(vio_topics));
+    // std::vector<geometry_msgs::PoseStamped> poses_imu;
+    // std::vector<geometry_msgs::PoseWithCovarianceStamped> poses_cov_buffer;
 
-    for(rosbag::View::iterator it = view_bag_vio.begin();it != view_bag_vio.end() && ros::ok();it++)
-    {
-        if(it->getTopic() == vio_topic_name)
-        {
-            geometry_msgs::PoseWithCovarianceStamped::ConstPtr vio_pose_Msg = it->instantiate<geometry_msgs::PoseWithCovarianceStamped>();
-            if (vio_pose_Msg != nullptr)
-            {
-                // printf("%d %f\n", vio_pose_Msg->header.seq, vio_pose_Msg->header.stamp.toSec());
-                // getchar();
+    // for(rosbag::View::iterator it = view_bag_vio.begin();it != view_bag_vio.end() && ros::ok();it++)
+    // {
+    //     if(it->getTopic() == vio_topic_name)
+    //     {
+    //         geometry_msgs::PoseWithCovarianceStamped::ConstPtr vio_pose_Msg = it->instantiate<geometry_msgs::PoseWithCovarianceStamped>();
+    //         if (vio_pose_Msg != nullptr)
+    //         {
+    //             // printf("%d %f\n", vio_pose_Msg->header.seq, vio_pose_Msg->header.stamp.toSec());
+    //             // getchar();
 
-                poses_cov_buffer.push_back(*vio_pose_Msg);
+    //             poses_cov_buffer.push_back(*vio_pose_Msg);
 
-                // Append to our pose vector
-                geometry_msgs::PoseStamped posetemp;
-                posetemp.header = vio_pose_Msg->header;
-                posetemp.pose = vio_pose_Msg->pose.pose;
-                poses_imu.push_back(posetemp);
+    //             // Append to our pose vector
+    //             geometry_msgs::PoseStamped posetemp;
+    //             posetemp.header = vio_pose_Msg->header;
+    //             posetemp.pose = vio_pose_Msg->pose.pose;
+    //             poses_imu.push_back(posetemp);
 
-                // Create our path (imu)
-                // NOTE: We downsample the number of poses as needed to prevent rviz crashes
-                // NOTE: https://github.com/ros-visualization/rviz/issues/1107
-                nav_msgs::Path arrIMU;
-                arrIMU.header.stamp = vio_pose_Msg->header.stamp;
-                arrIMU.header.seq = vio_pose_Msg->header.seq;
-                arrIMU.header.frame_id = "global";
-                for (size_t i = 0; i < poses_imu.size(); i += std::floor((double)poses_imu.size() / 16384.0) + 1) {
-                    arrIMU.poses.push_back(poses_imu.at(i));
-                }
-                pub_pathimu.publish(arrIMU);
+    //             // Create our path (imu)
+    //             // NOTE: We downsample the number of poses as needed to prevent rviz crashes
+    //             // NOTE: https://github.com/ros-visualization/rviz/issues/1107
+    //             nav_msgs::Path arrIMU;
+    //             arrIMU.header.stamp = vio_pose_Msg->header.stamp;
+    //             arrIMU.header.seq = vio_pose_Msg->header.seq;
+    //             arrIMU.header.frame_id = "global";
+    //             for (size_t i = 0; i < poses_imu.size(); i += std::floor((double)poses_imu.size() / 16384.0) + 1) {
+    //                 arrIMU.poses.push_back(poses_imu.at(i));
+    //             }
+    //             pub_pathimu.publish(arrIMU);
 
-                ros::spinOnce();
-                loop_rate.sleep();
-            }
-        }        
-    } 
-    bag_vio_traj.close();
+    //             ros::spinOnce();
+    //             loop_rate.sleep();
+    //         }
+    //     }        
+    // } 
+    // bag_vio_traj.close();
 
-    for (int i = 1; i < poses_imu.size(); i++)
-    {
-        double dt = poses_imu.at(i).header.stamp.toSec() - poses_imu.at(i-1).header.stamp.toSec();
-        if (dt < 0 || dt > 0.06)
-        {
-            printf("poses_imu dt err %f\n", dt);
-            getchar();
-        }
-    }
+    // for (int i = 1; i < poses_imu.size(); i++)
+    // {
+    //     double dt = poses_imu.at(i).header.stamp.toSec() - poses_imu.at(i-1).header.stamp.toSec();
+    //     if (dt < 0 || dt > 0.06)
+    //     {
+    //         printf("poses_imu dt err %f\n", dt);
+    //         getchar();
+    //     }
+    // }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     // Load groundtruth if we have it
@@ -98,6 +98,40 @@ int main(int argc, char **argv) {
     }
     printf("dataset1 %d %f %f\n", gt1_states.size(), gt1_states.begin()->first, gt1_states.rbegin()->first);
     printf("dataset2 %d %f %f\n", gt2_states.size(), gt2_states.begin()->first, gt2_states.rbegin()->first);
+
+    std::vector<geometry_msgs::PoseWithCovarianceStamped> poses_cov_buffer;
+    int cnt = -1;
+    for (auto const& x : gt1_states)
+    {
+        cnt++;
+        if (cnt % 10 != 0)
+        {
+            continue;
+        }
+        geometry_msgs::PoseWithCovarianceStamped vio_pose_Msg;
+        double t = x.first;
+        vio_pose_Msg.header.stamp = ros::Time().fromSec(t);
+        Eigen::Matrix<double, 4, 1> q_I1_W;        
+        vio_pose_Msg.pose.pose.orientation.x = x.second(5, 0); // quat
+        vio_pose_Msg.pose.pose.orientation.y = x.second(6, 0);
+        vio_pose_Msg.pose.pose.orientation.z = x.second(7, 0);
+        vio_pose_Msg.pose.pose.orientation.w = x.second(4, 0);
+        
+        vio_pose_Msg.pose.pose.position.x = x.second(1, 0); // pos
+        vio_pose_Msg.pose.pose.position.y = x.second(2, 0);
+        vio_pose_Msg.pose.pose.position.z = x.second(3, 0);
+
+        Eigen::Matrix<double, 6, 6> covariance_vio_pose = Eigen::Matrix<double, 6, 6>::Zero();
+        covariance_vio_pose.block(0,0,3,3) = 1.0e-4 * Eigen::Matrix<double, 3, 3>::Identity();
+        covariance_vio_pose.block(3,3,3,3) = 1.0e-6 * Eigen::Matrix<double, 3, 3>::Identity();
+        for (int r = 0; r < 6; r++) {
+            for (int c = 0; c < 6; c++) {
+                vio_pose_Msg.pose.covariance[6 * r + c] = covariance_vio_pose(r, c);
+            }
+        }
+
+        poses_cov_buffer.push_back(vio_pose_Msg);
+    }
 
     double shift_time = gt1_states.begin()->first - gt2_states.begin()->first;
     std::map<double, Eigen::Matrix<double, 17, 1>> gt2_states_cut;
@@ -320,6 +354,29 @@ int main(int argc, char **argv) {
 
     printf("position_buffer %d %f %f\n", position_buffer1.size(), position_buffer1.begin()->header.stamp.toSec(), position_buffer1.rbegin()->header.stamp.toSec());
 
+    std::vector<geometry_msgs::PoseStamped> traget_position_buffer;
+    for (auto const& x : gt2_states_cut)
+    {
+        double t = x.first;
+        geometry_msgs::PoseStamped msg;
+        msg.header.stamp = ros::Time().fromSec(t); 
+        msg.pose.orientation.x = x.second(5, 0); // quat
+        msg.pose.orientation.y = x.second(6, 0);
+        msg.pose.orientation.z = x.second(7, 0);
+        msg.pose.orientation.w = x.second(4, 0);
+
+        msg.pose.position.x = x.second(1, 0); // pos
+        msg.pose.position.y = x.second(2, 0);
+        msg.pose.position.z = x.second(3, 0);
+
+        traget_position_buffer.push_back(msg);
+
+        // outFile_pose << std::fixed << std::setprecision(6) << t << " "
+        //                 << msg.pose.position.x << " " << msg.pose.position.y << " " << msg.pose.position.z << " "
+        //                 << std::endl;
+    }
+    printf("target_position_buffer %d %f %f\n", traget_position_buffer.size(), traget_position_buffer.begin()->header.stamp.toSec(), traget_position_buffer.rbegin()->header.stamp.toSec());
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Location of the ROS bag we want to read in
     std::string path_to_bag2;
@@ -372,7 +429,12 @@ int main(int argc, char **argv) {
     // printf("first pos %f first imu %f\n", position_buffer1[0].header.stamp.toSec(), imu_msg_buffer[0].header.stamp.toSec());
 
     rosbag::Bag bag_data;
-    bag_data.open("/home/junlin/CSE/data.bag", rosbag::bagmode::Write);
+    bag_data.open("/home/junlin/CSE/data_euroc.bag", rosbag::bagmode::Write);
+
+    for (int i = 0 ; i < traget_position_buffer.size(); i++)
+    {
+        bag_data.write("/target_pose", traget_position_buffer[i].header.stamp, traget_position_buffer[i]);
+    }
 
     int pos_cnt = 0;
     while(pos_cnt < position_buffer1.size())
