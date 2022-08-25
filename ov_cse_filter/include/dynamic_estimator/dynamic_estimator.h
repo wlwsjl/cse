@@ -183,6 +183,9 @@ public:
   bool initialized_ = false;
   int useMethod_ = 3;
 
+  bool reset_1 = false;
+  bool reset_2 = false;
+
   std::ofstream outFile_pose;
   
 private:

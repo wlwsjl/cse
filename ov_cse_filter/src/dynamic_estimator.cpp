@@ -142,6 +142,15 @@ void DynamicEstimator::initializeFilter(const InitVars &init)
 void DynamicEstimator::resetFilter()
 {
   init_vars_ = InitVars();
+
+  init_vars_.P0 = Eigen::Matrix<flt,NUM_STATES_TANGENT,NUM_STATES_TANGENT>::Zero();
+  init_vars_.bg = state_.X.bg;
+  init_vars_.v = state_.X.v;
+  init_vars_.ba = state_.X.ba;
+  init_vars_.P0.block(bg_index, bg_index, bg_dim, bg_dim) = 1.0e-4 * consts_.eye3;
+  init_vars_.P0.block(v_index, v_index, v_dim, v_dim) = 1.0e-4 * consts_.eye3;
+  init_vars_.P0.block(ba_index, ba_index, ba_dim, ba_dim) = 1.0e-4 * consts_.eye3;
+
   initialized_ = false;
   warn("reset",int(init_vars_.inputInitialized || init_vars_.rInitialized));
 }
@@ -683,7 +692,7 @@ void DynamicEstimator::qr_callback(MeasTargetPose &meas_pose)
       measUpdateTargetPoseEKF(state_, meas_pose);
     }
     // publish updated estimates
-    // publishEstimates(state_);
+    publishEstimates(state_);
   }
   else
   {

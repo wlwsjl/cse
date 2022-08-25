@@ -38,8 +38,8 @@ void single_run(double position_sigma)
 
   // Load rosbag here, and find messages we can play
   std::string bag_folder = "/home/junlin/CSE/";
-  std::string path_to_bag = bag_folder + "data.bag";
-  // std::string path_to_bag = bag_folder + "data_euroc.bag";
+  // std::string path_to_bag = bag_folder + "data.bag";
+  std::string path_to_bag = bag_folder + "data_euroc.bag";
   rosbag::Bag bag;
   bag.open(path_to_bag, rosbag::bagmode::Read);
 
@@ -138,6 +138,16 @@ void single_run(double position_sigma)
       }
     }
 
+    static double dt = -1;
+    static double first_imu_time = -1;
+    if (first_imu_time < 0)
+    {
+      first_imu_time = time_imu;
+    }
+    else
+    {
+      dt = t - first_imu_time;
+    }
 
     if (should_process_pose) {
       // static int cnt = -1;
@@ -241,7 +251,22 @@ void single_run(double position_sigma)
       cur_pos.r = t_I2_W.cast<flt>();
       cur_pos.cov = covariance_position.cast<flt>();
       TicToc t_solve;
-      estimator.r_callback(cur_pos);
+      if (estimator.initialized_)
+      {
+        if ((dt > 30) && (dt < 50))
+        {
+          if (estimator.reset_1 == false)
+          {
+            estimator.reset_1 = true;
+            estimator.resetFilter();
+          }
+          estimator.r_callback(cur_pos);
+        }
+      }
+      else
+      {
+        estimator.r_callback(cur_pos);
+      }
       update_time += t_solve.toc();
       count_meas++;
 
@@ -309,8 +334,24 @@ void single_run(double position_sigma)
       cur_pose.cov.block(0,0,3,3) = 1.0e-6 * mat3::Identity();
       // r
       cur_pose.cov.block(3,3,3,3) = 1.0e-4 * mat3::Identity();
-      
-      estimator.qr_callback(cur_pose);
+
+      if (estimator.initialized_)
+      {
+        if ((dt < 30) || (dt > 50))
+        {
+          if ((dt > 50) && (estimator.reset_2 == false))
+          {
+            estimator.reset_2 = true;
+            estimator.resetFilter();
+          }
+          estimator.qr_callback(cur_pose);
+        }
+      }
+      else
+      {
+        estimator.qr_callback(cur_pose);
+      }
+
       // move forward in time
       msg_target_pose_current = msg_target_pose_next;
       view_target_pose_iter++;
