@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.12)
 project(ov_cse_filter)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/cmake")
+# set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/cmake")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 
 add_definitions(-std=c++11)
@@ -22,7 +22,7 @@ include_directories(
 )
 
 catkin_package(
-    CATKIN_DEPENDS roscpp rosbag geometry_msgs nav_msgs sensor_msgs message_runtime
+    CATKIN_DEPENDS roscpp rosbag geometry_msgs nav_msgs sensor_msgs
     DEPENDS EIGEN3
 )
 
@@ -45,9 +45,7 @@ add_library(dynamic_estimator_lib ${ESTIMATOR_SOURCE_FILES})
 target_link_libraries(dynamic_estimator_lib ${catkin_LIBRARIES} ${EIGEN_LIBS})
 
 add_executable(dynamic_estimator  src/dynamic_estimator_node.cpp)
-add_dependencies(dynamic_estimator ${catkin_EXPORTED_TARGETS} )
 target_link_libraries(dynamic_estimator dynamic_estimator_lib ${catkin_LIBRARIES} ${EIGEN_LIBS})
 
-add_executable(dynamic_estimator_batch  src/dynamic_estimator_batch.cpp)
-add_dependencies(dynamic_estimator_batch ${catkin_EXPORTED_TARGETS} )
-target_link_libraries(dynamic_estimator_batch dynamic_estimator_lib ${catkin_LIBRARIES} ${EIGEN_LIBS})
+add_executable(message_handler  src/message_handler.cpp)
+target_link_libraries(message_handler ${catkin_LIBRARIES})

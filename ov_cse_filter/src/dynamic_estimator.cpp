@@ -42,6 +42,11 @@ void DynamicEstimator::onInit(const ros::NodeHandle &nh)
   init_vars_.P0.block(v_index, v_index, v_dim, v_dim) = 1.0e-4 * consts_.eye3;
   init_vars_.P0.block(ba_index, ba_index, ba_dim, ba_dim) = 1.0e-4 * consts_.eye3;
 
+  init_vars_.q   = quat::Identity();
+  init_vars_.r   = vec3::Zero();
+  init_vars_.P0.block(q_index,q_index,q_dim,q_dim) = 1.0e-4 * consts_.eye3;
+  init_vars_.P0.block(r_index,r_index,r_dim,r_dim) = 1.0e-4 * consts_.eye3;
+
   // read UKF tuning parameters
   double temp;
   nh.param("UKF/alpha", temp, 0.4);
@@ -50,60 +55,6 @@ void DynamicEstimator::onInit(const ros::NodeHandle &nh)
   consts_.beta = flt(temp);
   nh.param("UKF/kappa", temp, 0.0);
   consts_.kappa = flt(temp);
-
-  // calculate the lambda and weights for unscented transform
-  consts_.lambda = consts_.alpha*consts_.alpha*(NUM_STATES_TANGENT+consts_.kappa) - (NUM_STATES_TANGENT);
-  consts_.Wm << consts_.lambda/(NUM_STATES_TANGENT + consts_.lambda), Eigen::Matrix<flt,2*(NUM_STATES_TANGENT),1>::Constant(2*(NUM_STATES_TANGENT),1,1.0/(2.0*((NUM_STATES_TANGENT) + consts_.lambda)));
-  consts_.Wc << consts_.lambda/(NUM_STATES_TANGENT + consts_.lambda) + (1-consts_.alpha*consts_.alpha+consts_.beta), Eigen::Matrix<flt,2*(NUM_STATES_TANGENT),1>::Constant(2*(NUM_STATES_TANGENT),1,1.0/(2.0*(NUM_STATES_TANGENT + consts_.lambda)));
-  consts_.lambda_q = consts_.alpha*consts_.alpha*(Qx_Dim+consts_.kappa) - (Qx_Dim);
-  consts_.Wmq << consts_.lambda_q/(Qx_Dim + consts_.lambda_q), Eigen::Matrix<flt,2*(Qx_Dim),1>::Constant(2*(Qx_Dim),1,1.0/(2.0*((Qx_Dim) + consts_.lambda_q)));
-  consts_.Wcq << consts_.lambda_q/(Qx_Dim + consts_.lambda_q) + (1-consts_.alpha*consts_.alpha+consts_.beta), Eigen::Matrix<flt,2*(Qx_Dim),1>::Constant(2*(Qx_Dim),1,1.0/(2.0*(Qx_Dim + consts_.lambda_q)));
-
-}
-
-void DynamicEstimator::Init()
-{
-  // initialize often used variables as consts
-  consts_.zero3 = mat3::Zero();
-  consts_.eye3 = mat3::Identity();
-  consts_.eye_NST = Eigen::Matrix<flt,NUM_STATES_TANGENT,NUM_STATES_TANGENT>::Identity();
-
-  consts_.e_z << 0.0f,0.0f,1.0f;
-  consts_.g = 9.807f;
-
-  init_vars_.P0 = Eigen::Matrix<flt,NUM_STATES_TANGENT,NUM_STATES_TANGENT>::Zero();
-
-  // imu noise covariance
-  // euroc
-  // flt gyro_noise = 1.0e-3;
-  // flt gyro_bias_noise = 1.0e-4;
-  // flt acc_noise = 1.0e-2;
-  // flt acc_bias_noise = 1.0e-3;
-
-  // lab
-  flt gyro_noise = 0.1;
-  flt gyro_bias_noise = 0.01;
-  flt acc_noise = 10.0;
-  flt acc_bias_noise = 0.01;
-
-  consts_.Qx = Eigen::Matrix<flt, Qx_Dim, Qx_Dim>::Zero();
-  consts_.Qx.block<3, 3>(0, 0) = consts_.eye3*std::pow(gyro_noise, 2);
-  consts_.Qx.block<3, 3>(3, 3) = consts_.eye3*std::pow(gyro_bias_noise, 2);
-  consts_.Qx.block<3, 3>(6, 6) = consts_.eye3*std::pow(acc_noise, 2);
-  consts_.Qx.block<3, 3>(9, 9) = consts_.eye3*std::pow(acc_bias_noise, 2);
-
-  init_vars_.bg = vec3::Zero();
-  init_vars_.v = vec3::Zero();
-  init_vars_.ba = vec3::Zero();
-  
-  init_vars_.P0.block(bg_index, bg_index, bg_dim, bg_dim) = 1.0e-4 * consts_.eye3;
-  init_vars_.P0.block(v_index, v_index, v_dim, v_dim) = 1.0e-4 * consts_.eye3;
-  init_vars_.P0.block(ba_index, ba_index, ba_dim, ba_dim) = 1.0e-4 * consts_.eye3;
-
-  // set UKF tuning parameters
-  consts_.alpha = 0.4;
-  consts_.beta = 2.0;
-  consts_.kappa = 0.0;
 
   // calculate the lambda and weights for unscented transform
   consts_.lambda = consts_.alpha*consts_.alpha*(NUM_STATES_TANGENT+consts_.kappa) - (NUM_STATES_TANGENT);
@@ -245,7 +196,7 @@ void DynamicEstimator::pruneCloneStateBuffer() {
 void DynamicEstimator::predictEKF(StateWithCov &state, Input &input)
 {
   // calculate time diff to predicted state
-  flt dt = input.t.toSec()-state.t.toSec();
+  flt dt = input.t-state.t;
   if (dt > 1.0e-5)
   {
     // Remove the bias from the measured gyro and acceleration
@@ -310,7 +261,7 @@ void DynamicEstimator::predictEKF(StateWithCov &state, Input &input)
 void DynamicEstimator::predictUKF(StateWithCov &state, Input &input)
 {
   // calculate time diff to predicted state
-  flt dt = input.t.toSec()-state.t.toSec();
+  flt dt = input.t-state.t;
 
   if (dt > 1.0e-5) {
     Eigen::Matrix<flt,Qx_Dim,NUM_SIGMAS_Q> sigmaQ;
@@ -615,40 +566,95 @@ void DynamicEstimator::calculateMeanStateSigma(State &mean, const State sigmaPoi
 
 ////////////////////  message callback functions  ////////////////////
 
-void DynamicEstimator::input_callback(Input &input_)
+void DynamicEstimator::input_callback(const sensor_msgs::Imu::ConstPtr &msg)
 {
-  if (initialized_)
+  imu_buffer.push_back(msg);
+}
+
+void DynamicEstimator::r_callback(const geometry_msgs::PointStamped::ConstPtr &msg)
+{
+  abs_position_buffer.push_back(msg);
+}
+
+bool DynamicEstimator::sync_packages(MeasureGroup &meas)
+{
+    if (abs_position_buffer.empty() || imu_buffer.empty()) {
+        return false;
+    }
+
+    if (imu_buffer.back()->header.stamp.toSec() < abs_position_buffer.front()->header.stamp.toSec())
+    {
+        return false;
+    }
+
+    auto pos_msg = abs_position_buffer.front();
+    MeasPose meas_pose;
+    meas_pose.t = pos_msg->header.stamp.toSec();
+    Eigen::Matrix<double, 3, 1> t_I_W;
+    t_I_W(0) = pos_msg->point.x;
+    t_I_W(1) = pos_msg->point.y;
+    t_I_W(2) = pos_msg->point.z;
+
+    meas_pose.r = t_I_W.cast<flt>();
+    meas_pose.cov = consts_.eye3 * std::pow(0.05, 2);
+
+    meas.abs_pos = meas_pose;
+    abs_position_buffer.pop_front();
+
+    meas.imu_buf.clear();
+    while (!imu_buffer.empty())
+    {
+      double imu_time = imu_buffer.front()->header.stamp.toSec();
+      if (imu_time < meas_pose.t)
+      {
+        auto msg = imu_buffer.front();
+        Input input_;
+        input_.t = msg->header.stamp.toSec();
+        input_.a(0) = msg->linear_acceleration.x;
+        input_.a(1) = msg->linear_acceleration.y;
+        input_.a(2) = msg->linear_acceleration.z;
+        input_.w(0) = msg->angular_velocity.x;
+        input_.w(1) = msg->angular_velocity.y;
+        input_.w(2) = msg->angular_velocity.z;
+        meas.imu_buf.push_back(input_);
+        imu_buffer.pop_front();
+      }
+      else
+      {
+        break;
+      }
+    }
+ 
+    return true;
+}
+
+void DynamicEstimator::process_packages(MeasureGroup &meas)
+{
+  if (!initialized_)
   {
-    // predict state with either EKF or UKF
-    if (useMethod_ == 1 || useMethod_ == 2)
-    {
-      predictEKF(state_, input_);
-    }
-    else
-    {
-      predictUKF(state_, input_);
-    }
-    // publish updated estimates
-    // publishEstimates(state_);
+    init_vars_.t = meas.abs_pos.t;
+    init_vars_.r   = meas.abs_pos.r;
+    init_vars_.P0.block(r_index,r_index,r_dim,r_dim) = meas.abs_pos.cov.block(0,0,3,3);
+    initializeFilter(init_vars_);
+    return;
   }
   else
   {
-    // if not initialized, save msg, set flag that pose initialized
-    init_vars_.inputInitialized = true;
-    init_vars_.t = input_.t;
-    // check whether ready to initialize or not
-    init_vars_.readyToInitialize = init_vars_.inputInitialized &&
-                                   init_vars_.rInitialized &&
-                                   init_vars_.qrInitialized;
-    if (init_vars_.readyToInitialize)
-      initializeFilter(init_vars_);
-  }
-}
+    for (int i = 0; i < meas.imu_buf.size(); i++)
+    {
+      Input input_ = meas.imu_buf.at(i);
+      // predict state with either EKF or UKF
+      if (useMethod_ == 1 || useMethod_ == 2)
+      {
+        predictEKF(state_, input_);
+      }
+      else
+      {
+        predictUKF(state_, input_);
+      }
+    }
 
-void DynamicEstimator::r_callback(MeasPose &meas_pose)
-{
-  if (initialized_)
-  {
+    MeasPose meas_pose = meas.abs_pos;
     // update state with either EKF or UKF
     if (useMethod_ == 1)
     {
@@ -664,50 +670,12 @@ void DynamicEstimator::r_callback(MeasPose &meas_pose)
     {
       measUpdatePoseUKF(state_, meas_pose);
     }  
+    state_.t = meas.abs_pos.t;
     // publish updated estimates
     publishEstimates(state_);
-  }
-  else
-  {
-    // if not initialized, save msg, set flag that pose initialized
-    // init_vars_.r   = meas_pose.r;
-    // init_vars_.P0.block(r_index,r_index,r_dim,r_dim) = meas_pose.cov.block(0,0,3,3);
-    init_vars_.rInitialized = true;
-    // check whether ready to initialize or not
-    init_vars_.readyToInitialize = init_vars_.inputInitialized &&
-                                   init_vars_.rInitialized &&
-                                   init_vars_.qrInitialized;
-    if (init_vars_.readyToInitialize)
-      initializeFilter(init_vars_);
-  }
-}
 
-void DynamicEstimator::qr_callback(MeasTargetPose &meas_pose)
-{
-  if (initialized_)
-  {
-    // update state with either EKF or UKF
-    if (useMethod_ == 1)
-    {
-      measUpdateTargetPoseEKF(state_, meas_pose);
-    }
-    // publish updated estimates
-    publishEstimates(state_);
-  }
-  else
-  {
-    // if not initialized, save msg, set flag that pose initialized
-    init_vars_.q   = meas_pose.q;
-    init_vars_.r   = meas_pose.r;
-    init_vars_.P0.block(q_index,q_index,q_dim,q_dim) = meas_pose.cov.block(0,0,3,3);
-    init_vars_.P0.block(r_index,r_index,r_dim,r_dim) = meas_pose.cov.block(3,3,3,3);
-    init_vars_.qrInitialized = true;
-    // check whether ready to initialize or not
-    init_vars_.readyToInitialize = init_vars_.inputInitialized &&
-                                   init_vars_.rInitialized &&
-                                   init_vars_.qrInitialized;
-    if (init_vars_.readyToInitialize)
-      initializeFilter(init_vars_);
+    // outFile_pose << std::fixed << std::setprecision(6) << meas.abs_pos.t << " " << meas.abs_pos.r(0) << " " << meas.abs_pos.r(1) << " " << meas.abs_pos.r(2) << " " << std::endl;
+    outFile_pose << std::fixed << std::setprecision(6) << state_.t << " " << state_.X.r(0) << " " << state_.X.r(1) << " " << state_.X.r(2) << " " << std::endl;
   }
 }
 
@@ -715,7 +683,7 @@ void DynamicEstimator::publishEstimates(const StateWithCov &estimate)
 {
   // Append to our pose vector
   geometry_msgs::PoseStamped posetemp;
-  posetemp.header.stamp = estimate.t;
+  posetemp.header.stamp = ros::Time().fromSec(estimate.t);
   posetemp.pose.position.x = estimate.X.r(0);
   posetemp.pose.position.y = estimate.X.r(1);
   posetemp.pose.position.z = estimate.X.r(2);
@@ -734,26 +702,7 @@ void DynamicEstimator::publishEstimates(const StateWithCov &estimate)
   for (size_t i = 0; i < poses_imu.size(); i += std::floor((double)poses_imu.size() / 16384.0) + 1) {
       arrIMU.poses.push_back(poses_imu.at(i));
   }
-  pub_pathimu.publish(arrIMU);
-
-  double t = posetemp.header.stamp.toSec();
-  // static double init_time = -1.0;
-  // if (init_time < 0)
-  // {
-  //   init_time = posetemp.header.stamp.toSec();
-  // }
-  // double t = posetemp.header.stamp.toSec() - init_time;
-
-  // timestamp
-  outFile_pose.precision(5);
-  outFile_pose.setf(std::ios::fixed, std::ios::floatfield);
-  outFile_pose << t << " ";
-
-  // save mass
-  outFile_pose.precision(6);
-  outFile_pose << estimate.X.r(0) << " " <<estimate.X.r(1) << " " <<estimate.X.r(2) << " "
-          << estimate.X.q.x() << " " <<estimate.X.q.y() << " " << estimate.X.q.z() << " " << estimate.X.q.w() << " "
-          << std::endl;
+  pub_pathimu.publish(arrIMU);  
 }
 
 ////////////////////  state addition/subraction functions  ////////////////////

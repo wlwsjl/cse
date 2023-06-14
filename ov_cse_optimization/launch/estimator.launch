@@ -1,6 +1,0 @@
-<launch>
-    <arg name="config_path" default = "$(find ov_cse_optimization)/config/quad_params.yaml" />
-    <node pkg="ov_cse_optimization" type="estimator_batch" name="estimator_batch" output="screen" >
-       <param name="config_file" type="string" value="$(arg config_path)" />
-    </node>
-</launch>

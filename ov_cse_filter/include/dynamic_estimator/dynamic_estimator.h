@@ -48,8 +48,7 @@ struct Input
   // inputs for prediction step
   vec3 a;
   vec3 w;
-  ros::Time t;
-  // flt t;
+  double t;
 };
 
 struct MeasPose
@@ -57,6 +56,7 @@ struct MeasPose
   // measurements for pose measurement update
   vec3 r;
   mat3 cov;
+  double t;
 };
 
 struct MeasTargetPose
@@ -65,6 +65,13 @@ struct MeasTargetPose
   vec3 r;
   quat q;
   mat6 cov;
+  double t;
+};
+
+struct MeasureGroup
+{
+  MeasPose abs_pos;
+  std::vector<Input> imu_buf;
 };
 
 // structs/classes to cleanly save sates, inputs, measurements, and initialization values
@@ -77,8 +84,7 @@ struct InitVars
   bool qrInitialized = false;
   bool inputInitialized = false;
   // time
-  ros::Time t;
-  // flt t;
+  double t;
   // state variables
   quat q;
   vec3 bg;
@@ -114,8 +120,7 @@ public:
 
   MeasPose meas;
 
-  ros::Time t;
-  // flt t;
+  double t;
 };
 
 struct StateWithCov
@@ -126,8 +131,7 @@ struct StateWithCov
   std::map<long long int, Clone_State> clone_states;
   // Eigen::Matrix<flt,NUM_STATES_TANGENT,NUM_STATES_TANGENT> P;
   Eigen::MatrixXf P;
-  ros::Time t;
-  // flt t;
+  double t;
 };
 
 struct Consts
@@ -169,9 +173,13 @@ public:
                   sub_pos_;
   ros::Publisher pub_pathimu;
   std::vector<geometry_msgs::PoseStamped> poses_imu;
-  void input_callback(Input &input_);
-  void r_callback(MeasPose &meas_pose);
-  void qr_callback(MeasTargetPose &meas_pose);
+  void input_callback(const sensor_msgs::Imu::ConstPtr &msg);
+  void r_callback(const geometry_msgs::PointStamped::ConstPtr &msg);
+  bool sync_packages(MeasureGroup &meas);
+  void process_packages(MeasureGroup &meas);
+
+  std::deque<sensor_msgs::Imu::ConstPtr> imu_buffer;
+  std::deque<geometry_msgs::PointStamped::ConstPtr> abs_position_buffer;
 
   // member variables
   Consts consts_;
