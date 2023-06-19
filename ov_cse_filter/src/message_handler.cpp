@@ -3,6 +3,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PointStamped.h>
+#include <std_msgs/Bool.h>
 #include <Eigen/Eigen>
 #include <fstream>
 #include <queue>
@@ -27,14 +28,29 @@ void odometry1_callback(geometry_msgs::PoseStamped odo_msg)
     // outFile_odo_pose << std::fixed << std::setprecision(6) << t << " " << x << " " << y << " " << z << " " << std::endl;
 }
 
-void odometry2_callback(geometry_msgs::PoseStamped odo_msg)
-{
-    double t = odo_msg.header.stamp.toSec();
-    double x = odo_msg.pose.position.x;
-    double y = odo_msg.pose.position.y;
-    double z = odo_msg.pose.position.z;
+// void odometry2_callback(geometry_msgs::PoseStamped odo_msg)
+// {
+//     double t = odo_msg.header.stamp.toSec();
+//     double x = odo_msg.pose.position.x;
+//     double y = odo_msg.pose.position.y;
+//     double z = odo_msg.pose.position.z;
 
-    // outFile_odo_pose << std::fixed << std::setprecision(6) << t << " " << x << " " << y << " " << z << " " << std::endl;
+//     // outFile_odo_pose << std::fixed << std::setprecision(6) << t << " " << x << " " << y << " " << z << " " << std::endl;
+
+//     odo2_p_buffer.push_back(odo_msg);
+// }
+
+void odometry2_callback(nav_msgs::Odometry gt_msg)
+{
+    geometry_msgs::PoseStamped odo_msg;
+    odo_msg.header = gt_msg.header;
+    odo_msg.pose.position.x = gt_msg.pose.pose.position.x;
+    odo_msg.pose.position.y = gt_msg.pose.pose.position.y;
+    odo_msg.pose.position.z = gt_msg.pose.pose.position.z;
+    odo_msg.pose.orientation.x = gt_msg.pose.pose.orientation.x;
+    odo_msg.pose.orientation.y = gt_msg.pose.pose.orientation.y;
+    odo_msg.pose.orientation.z = gt_msg.pose.pose.orientation.z;
+    odo_msg.pose.orientation.w = gt_msg.pose.pose.orientation.w;
 
     odo2_p_buffer.push_back(odo_msg);
 }
@@ -67,6 +83,7 @@ void gt2_callback(nav_msgs::Odometry gt_msg)
 void Get_Rel_Pos();
 ros::Publisher abs_pos_pub;
 void Get_Abs_Pos();
+ros::Publisher signal_pub;
 
 int main(int argc, char **argv)
 {
@@ -78,11 +95,13 @@ int main(int argc, char **argv)
     // outFile_gt_pose.open("/home/junlin/GNSS/eval/gt.txt");
 
     // ros::Subscriber odometry1_subscriber = n.subscribe("/uav_1/ual/pose", 1000, odometry1_callback);
-    ros::Subscriber odometry2_subscriber = n.subscribe("/uav_2/ual/pose", 1000, odometry2_callback);
+    // ros::Subscriber odometry2_subscriber = n.subscribe("/uav_2/ual/pose", 1000, odometry2_callback);
+    ros::Subscriber odometry2_subscriber = n.subscribe("/uav_2/ground_truth/state", 1000, odometry2_callback);
     ros::Subscriber gt1_subscriber = n.subscribe("/uav_1/ground_truth/state", 1000, gt1_callback);
     ros::Subscriber gt2_subscriber = n.subscribe("/uav_2/ground_truth/state", 1000, gt2_callback);
 
     abs_pos_pub = n.advertise<geometry_msgs::PointStamped>("/abs_position", 1000);
+    signal_pub = n.advertise<std_msgs::Bool>("/disable_gps", 1000);
 
     while (ros::ok())
     {
@@ -207,6 +226,27 @@ void Get_Abs_Pos()
             // printf("find composed pos\n");
             rel_p_buffer.pop_front();
             odo2_p_buffer.pop_front();
+
+            static double init_time = -1;
+            if (init_time < 0)
+            {
+                init_time = time;
+            }
+
+            std_msgs::Bool signal_temp;
+            if (time < init_time + 30)
+            {
+                signal_temp.data = false;
+            }
+            else if (time < init_time + 60)
+            {
+                signal_temp.data = true;
+            }
+            else
+            {
+                signal_temp.data = false;
+            }
+            signal_pub.publish(signal_temp);
         }
     }
 }

@@ -8,6 +8,8 @@
 #include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/Point.h>
 #include <nav_msgs/Path.h>
+#include <nav_msgs/Odometry.h>
+#include <std_msgs/Bool.h>
 #include <Eigen/Cholesky>
 #include <strstream>
 #include <string.h>
@@ -19,6 +21,7 @@
 #include <queue>
 #include <time.h>
 #include <fstream>
+#include <random>
 
 using namespace std;
 
@@ -170,11 +173,15 @@ public:
   std::string file;
   // subscribers and publisher
   ros::Subscriber sub_imu_,
-                  sub_pos_;
+                  sub_pos_,
+                  sub_gps_pos_,
+                  sub_signal_;
   ros::Publisher pub_pathimu;
   std::vector<geometry_msgs::PoseStamped> poses_imu;
   void input_callback(const sensor_msgs::Imu::ConstPtr &msg);
   void r_callback(const geometry_msgs::PointStamped::ConstPtr &msg);
+  void gps_r_callback(const nav_msgs::Odometry::ConstPtr &msg);
+  void signal_callback(const std_msgs::Bool::ConstPtr &msg);
   bool sync_packages(MeasureGroup &meas);
   void process_packages(MeasureGroup &meas);
 
@@ -189,10 +196,9 @@ public:
 
   // status flags
   bool initialized_ = false;
-  int useMethod_ = 3;
+  int useMethod_ = 1;
 
-  bool reset_1 = false;
-  bool reset_2 = false;
+  bool disable_gps = false;
 
   std::ofstream outFile_pose;
   

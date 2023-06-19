@@ -103,7 +103,6 @@ void DynamicEstimator::resetFilter()
   init_vars_.P0.block(ba_index, ba_index, ba_dim, ba_dim) = 1.0e-4 * consts_.eye3;
 
   initialized_ = false;
-  warn("reset",int(init_vars_.inputInitialized || init_vars_.rInitialized));
 }
 
 void DynamicEstimator::stateAugmentation(MeasPose &meas_pose) {
@@ -568,93 +567,62 @@ void DynamicEstimator::calculateMeanStateSigma(State &mean, const State sigmaPoi
 
 void DynamicEstimator::input_callback(const sensor_msgs::Imu::ConstPtr &msg)
 {
-  imu_buffer.push_back(msg);
+  Input input_;
+  input_.t = msg->header.stamp.toSec();
+  input_.a(0) = msg->linear_acceleration.x;
+  input_.a(1) = msg->linear_acceleration.y;
+  input_.a(2) = msg->linear_acceleration.z;
+  input_.w(0) = msg->angular_velocity.x;
+  input_.w(1) = msg->angular_velocity.y;
+  input_.w(2) = msg->angular_velocity.z;
+
+  if (initialized_)
+  {
+    // predict state with either EKF or UKF
+    if (useMethod_ == 1 || useMethod_ == 2)
+    {
+      predictEKF(state_, input_);
+    }
+    else
+    {
+      predictUKF(state_, input_);
+    }
+    // publish updated estimates
+    // publishEstimates(state_);
+    outFile_pose << std::fixed << std::setprecision(6) << state_.t << " " << state_.X.r(0) << " " << state_.X.r(1) << " " << state_.X.r(2) << " " << std::endl;
+  }
 }
 
 void DynamicEstimator::r_callback(const geometry_msgs::PointStamped::ConstPtr &msg)
 {
-  abs_position_buffer.push_back(msg);
-}
-
-bool DynamicEstimator::sync_packages(MeasureGroup &meas)
-{
-    if (abs_position_buffer.empty() || imu_buffer.empty()) {
-        return false;
-    }
-
-    if (imu_buffer.back()->header.stamp.toSec() < abs_position_buffer.front()->header.stamp.toSec())
-    {
-        return false;
-    }
-
-    auto pos_msg = abs_position_buffer.front();
-    MeasPose meas_pose;
-    meas_pose.t = pos_msg->header.stamp.toSec();
-    Eigen::Matrix<double, 3, 1> t_I_W;
-    t_I_W(0) = pos_msg->point.x;
-    t_I_W(1) = pos_msg->point.y;
-    t_I_W(2) = pos_msg->point.z;
-
-    meas_pose.r = t_I_W.cast<flt>();
-    meas_pose.cov = consts_.eye3 * std::pow(0.05, 2);
-
-    meas.abs_pos = meas_pose;
-    abs_position_buffer.pop_front();
-
-    meas.imu_buf.clear();
-    while (!imu_buffer.empty())
-    {
-      double imu_time = imu_buffer.front()->header.stamp.toSec();
-      if (imu_time < meas_pose.t)
-      {
-        auto msg = imu_buffer.front();
-        Input input_;
-        input_.t = msg->header.stamp.toSec();
-        input_.a(0) = msg->linear_acceleration.x;
-        input_.a(1) = msg->linear_acceleration.y;
-        input_.a(2) = msg->linear_acceleration.z;
-        input_.w(0) = msg->angular_velocity.x;
-        input_.w(1) = msg->angular_velocity.y;
-        input_.w(2) = msg->angular_velocity.z;
-        meas.imu_buf.push_back(input_);
-        imu_buffer.pop_front();
-      }
-      else
-      {
-        break;
-      }
-    }
- 
-    return true;
-}
-
-void DynamicEstimator::process_packages(MeasureGroup &meas)
-{
-  if (!initialized_)
+  if (!disable_gps)
   {
-    init_vars_.t = meas.abs_pos.t;
-    init_vars_.r   = meas.abs_pos.r;
-    init_vars_.P0.block(r_index,r_index,r_dim,r_dim) = meas.abs_pos.cov.block(0,0,3,3);
-    initializeFilter(init_vars_);
     return;
   }
-  else
-  {
-    for (int i = 0; i < meas.imu_buf.size(); i++)
-    {
-      Input input_ = meas.imu_buf.at(i);
-      // predict state with either EKF or UKF
-      if (useMethod_ == 1 || useMethod_ == 2)
-      {
-        predictEKF(state_, input_);
-      }
-      else
-      {
-        predictUKF(state_, input_);
-      }
-    }
 
-    MeasPose meas_pose = meas.abs_pos;
+  MeasPose meas_pose;
+  meas_pose.t = msg->header.stamp.toSec();
+  Eigen::Matrix<double, 3, 1> t_I_W;
+  t_I_W(0) = msg->point.x;
+  t_I_W(1) = msg->point.y;
+  t_I_W(2) = msg->point.z;
+
+  std::random_device device_random_;
+  std::default_random_engine generator_(device_random_());
+  double position_sigma = 0.1;
+  std::normal_distribution<> distribution_x_(0.0, position_sigma);
+  std::normal_distribution<> distribution_y_(0.0, position_sigma);
+  std::normal_distribution<> distribution_z_(0.0, position_sigma);
+
+  t_I_W(0) += distribution_x_(generator_);
+  t_I_W(1) += distribution_y_(generator_);
+  t_I_W(2) += distribution_z_(generator_);
+
+  meas_pose.r = t_I_W.cast<flt>();
+  meas_pose.cov = consts_.eye3 * std::pow(position_sigma, 2);
+
+  if (initialized_)
+  {
     // update state with either EKF or UKF
     if (useMethod_ == 1)
     {
@@ -669,14 +637,83 @@ void DynamicEstimator::process_packages(MeasureGroup &meas)
     else
     {
       measUpdatePoseUKF(state_, meas_pose);
-    }  
-    state_.t = meas.abs_pos.t;
+    }
     // publish updated estimates
     publishEstimates(state_);
-
-    // outFile_pose << std::fixed << std::setprecision(6) << meas.abs_pos.t << " " << meas.abs_pos.r(0) << " " << meas.abs_pos.r(1) << " " << meas.abs_pos.r(2) << " " << std::endl;
-    outFile_pose << std::fixed << std::setprecision(6) << state_.t << " " << state_.X.r(0) << " " << state_.X.r(1) << " " << state_.X.r(2) << " " << std::endl;
   }
+  else
+  {
+    init_vars_.t = meas_pose.t;
+    init_vars_.r   = meas_pose.r;
+    init_vars_.P0.block(r_index,r_index,r_dim,r_dim) = meas_pose.cov.block(0,0,3,3);
+    initializeFilter(init_vars_);
+  }
+}
+
+void DynamicEstimator::gps_r_callback(const nav_msgs::Odometry::ConstPtr &msg)
+{
+  if (disable_gps)
+  {
+    return;
+  }
+
+  MeasPose meas_pose;
+  meas_pose.t = msg->header.stamp.toSec();
+  Eigen::Matrix<double, 3, 1> t_I_W;
+  t_I_W(0) = msg->pose.pose.position.x;
+  t_I_W(1) = msg->pose.pose.position.y;
+  t_I_W(2) = msg->pose.pose.position.z;
+
+  std::random_device device_random_;
+  std::default_random_engine generator_(device_random_());
+  double position_sigma = 0.01;
+  std::normal_distribution<> distribution_x_(0.0, position_sigma);
+  std::normal_distribution<> distribution_y_(0.0, position_sigma);
+  std::normal_distribution<> distribution_z_(0.0, position_sigma);
+
+  t_I_W(0) += distribution_x_(generator_);
+  t_I_W(1) += distribution_y_(generator_);
+  t_I_W(2) += distribution_z_(generator_);
+
+  meas_pose.r = t_I_W.cast<flt>();
+  meas_pose.cov = consts_.eye3 * std::pow(position_sigma, 2);
+
+  if (initialized_)
+  {
+    // update state with either EKF or UKF
+    if (useMethod_ == 1)
+    {
+      measUpdatePoseEKF(state_, meas_pose);
+    }
+    else if (useMethod_ == 2)
+    {
+      stateAugmentation(meas_pose);
+      measUpdatePoseMSCKF();
+      pruneCloneStateBuffer();
+    }
+    else
+    {
+      measUpdatePoseUKF(state_, meas_pose);
+    }
+    // publish updated estimates
+    publishEstimates(state_);
+  }
+  else
+  {
+    init_vars_.t = meas_pose.t;
+    init_vars_.r   = meas_pose.r;
+    init_vars_.P0.block(r_index,r_index,r_dim,r_dim) = meas_pose.cov.block(0,0,3,3);
+    initializeFilter(init_vars_);
+  }
+}
+
+void DynamicEstimator::signal_callback(const std_msgs::Bool::ConstPtr &msg)
+{
+  // if (disable_gps != msg->data)
+  // {
+  //   resetFilter();
+  // }
+  disable_gps = msg->data;
 }
 
 void DynamicEstimator::publishEstimates(const StateWithCov &estimate)

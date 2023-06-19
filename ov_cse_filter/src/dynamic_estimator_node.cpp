@@ -2,7 +2,6 @@
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 #include "dynamic_estimator.h"
-#include <random>
 
 int main(int argc, char *argv[]) {
 
@@ -16,16 +15,8 @@ int main(int argc, char *argv[]) {
 
   estimator.sub_imu_  = nh.subscribe("/uav_1/mavros/imu/data",  10,&DynamicEstimator::input_callback,  &estimator);
   estimator.sub_pos_ = nh.subscribe("/abs_position", 10,&DynamicEstimator::r_callback, &estimator);
-
-  while (ros::ok())
-  {
-    ros::spinOnce();
-    MeasureGroup Measures;
-    if(estimator.sync_packages(Measures)) 
-    {
-      estimator.process_packages(Measures);
-    }
-  }
+  estimator.sub_gps_pos_ = nh.subscribe("/uav_1/ground_truth/state", 10,&DynamicEstimator::gps_r_callback, &estimator);
+  estimator.sub_signal_ = nh.subscribe("/disable_gps", 10,&DynamicEstimator::signal_callback, &estimator);
 
   ros::spin();
 
