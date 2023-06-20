@@ -176,6 +176,7 @@ public:
                   sub_pos_,
                   sub_gps_pos_,
                   sub_signal_;
+  ros::Publisher pub_pose;
   ros::Publisher pub_pathimu;
   std::vector<geometry_msgs::PoseStamped> poses_imu;
   void input_callback(const sensor_msgs::Imu::ConstPtr &msg);

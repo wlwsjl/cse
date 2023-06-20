@@ -10,8 +10,9 @@ int main(int argc, char *argv[]) {
 
   DynamicEstimator estimator;
   estimator.onInit(nh);
+  estimator.pub_pose = nh.advertise<geometry_msgs::PoseStamped>("/poseimu", 10);
   estimator.pub_pathimu = nh.advertise<nav_msgs::Path>("/pathimu", 10);
-  estimator.outFile_pose.open("/home/junlin/GNSS/eval/stamped_traj_estimate.txt");
+  // estimator.outFile_pose.open("/home/junlin/GNSS/eval/stamped_traj_estimate.txt");
 
   estimator.sub_imu_  = nh.subscribe("/uav_1/mavros/imu/data",  10,&DynamicEstimator::input_callback,  &estimator);
   estimator.sub_pos_ = nh.subscribe("/abs_position", 10,&DynamicEstimator::r_callback, &estimator);

@@ -49,3 +49,6 @@ target_link_libraries(dynamic_estimator dynamic_estimator_lib ${catkin_LIBRARIES
 
 add_executable(message_handler  src/message_handler.cpp)
 target_link_libraries(message_handler ${catkin_LIBRARIES})
+
+add_executable(sub_pose  src/sub_pose.cpp)
+target_link_libraries(sub_pose ${catkin_LIBRARIES})

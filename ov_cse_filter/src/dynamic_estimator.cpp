@@ -588,8 +588,8 @@ void DynamicEstimator::input_callback(const sensor_msgs::Imu::ConstPtr &msg)
       predictUKF(state_, input_);
     }
     // publish updated estimates
-    // publishEstimates(state_);
-    outFile_pose << std::fixed << std::setprecision(6) << state_.t << " " << state_.X.r(0) << " " << state_.X.r(1) << " " << state_.X.r(2) << " " << std::endl;
+    publishEstimates(state_);
+    // outFile_pose << std::fixed << std::setprecision(6) << state_.t << " " << state_.X.r(0) << " " << state_.X.r(1) << " " << state_.X.r(2) << " " << std::endl;
   }
 }
 
@@ -728,6 +728,8 @@ void DynamicEstimator::publishEstimates(const StateWithCov &estimate)
   posetemp.pose.orientation.y = estimate.X.q.y();
   posetemp.pose.orientation.z = estimate.X.q.z();
   posetemp.pose.orientation.w = estimate.X.q.w();
+  pub_pose.publish(posetemp);
+
   poses_imu.push_back(posetemp);
 
   // Create our path (imu)
