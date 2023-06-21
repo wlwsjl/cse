@@ -1,12 +1,12 @@
 <launch>
-    <node pkg="ov_cse_filter" type="message_handler" name="message_handler" output="screen">
-    </node>
+    <!-- <node pkg="ov_cse_filter" type="message_handler" name="message_handler" output="screen">
+    </node> -->
     
     <node pkg="ov_cse_filter" type="dynamic_estimator" name="dynamic_estimator" output="screen">
         <rosparam file="$(find ov_cse_filter)/config/quad_params.yaml"/>
         <param name="topic_imu" type="string" value="/uav_1/mavros/imu/data"/>
-        <param name="topic_pos" type="string" value="/abs_position"/>
-        <!-- <param name="topic_pos" type="string" value="/detect_track2D_and_locate/detection_point_stamped"/> -->
+        <!-- <param name="topic_pos" type="string" value="/abs_position"/> -->
+        <param name="topic_pos" type="string" value="/detect_track2D_and_locate/detection_point_stamped"/>
         <param name="topic_gps_pos" type="string" value="/uav_1/ground_truth/state"/>
         <param name="topic_signal" type="string" value="/disable_gps"/>
 

@@ -617,9 +617,9 @@ void DynamicEstimator::r_callback(const geometry_msgs::PointStamped::ConstPtr &m
   std::normal_distribution<> distribution_y_(0.0, position_sigma);
   std::normal_distribution<> distribution_z_(0.0, position_sigma);
 
-  t_I_W(0) += distribution_x_(generator_);
-  t_I_W(1) += distribution_y_(generator_);
-  t_I_W(2) += distribution_z_(generator_);
+  // t_I_W(0) += distribution_x_(generator_);
+  // t_I_W(1) += distribution_y_(generator_);
+  // t_I_W(2) += distribution_z_(generator_);
 
   meas_pose.r = t_I_W.cast<flt>();
   meas_pose.cov = consts_.eye3 * std::pow(position_sigma, 2);
