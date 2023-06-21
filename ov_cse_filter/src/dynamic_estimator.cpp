@@ -19,6 +19,9 @@ void DynamicEstimator::onInit(const ros::NodeHandle &nh)
   nh.param<int>("useMethod", temp_method, 1.0);
   useMethod_ = temp_method;
 
+  nh.param<double>("abs_position_std", abs_position_std, 0.1);
+  nh.param<double>("gps_position_std", gps_position_std, 0.01);
+
   // imu noise covariance
   double gyro_noise = 1.0e-3;
   double gyro_bias_noise = 1.0e-4;
@@ -609,7 +612,7 @@ void DynamicEstimator::r_callback(const geometry_msgs::PointStamped::ConstPtr &m
 
   std::random_device device_random_;
   std::default_random_engine generator_(device_random_());
-  double position_sigma = 0.1;
+  double position_sigma = abs_position_std;
   std::normal_distribution<> distribution_x_(0.0, position_sigma);
   std::normal_distribution<> distribution_y_(0.0, position_sigma);
   std::normal_distribution<> distribution_z_(0.0, position_sigma);
@@ -666,7 +669,7 @@ void DynamicEstimator::gps_r_callback(const nav_msgs::Odometry::ConstPtr &msg)
 
   std::random_device device_random_;
   std::default_random_engine generator_(device_random_());
-  double position_sigma = 0.01;
+  double position_sigma = gps_position_std;
   std::normal_distribution<> distribution_x_(0.0, position_sigma);
   std::normal_distribution<> distribution_y_(0.0, position_sigma);
   std::normal_distribution<> distribution_z_(0.0, position_sigma);
@@ -721,6 +724,7 @@ void DynamicEstimator::publishEstimates(const StateWithCov &estimate)
   // Append to our pose vector
   geometry_msgs::PoseStamped posetemp;
   posetemp.header.stamp = ros::Time().fromSec(estimate.t);
+  posetemp.header.frame_id = "map";
   posetemp.pose.position.x = estimate.X.r(0);
   posetemp.pose.position.y = estimate.X.r(1);
   posetemp.pose.position.z = estimate.X.r(2);
@@ -737,7 +741,7 @@ void DynamicEstimator::publishEstimates(const StateWithCov &estimate)
   // NOTE: https://github.com/ros-visualization/rviz/issues/1107
   nav_msgs::Path arrIMU;
   arrIMU.header.stamp = posetemp.header.stamp;
-  arrIMU.header.frame_id = "global";
+  arrIMU.header.frame_id = "map";
   for (size_t i = 0; i < poses_imu.size(); i += std::floor((double)poses_imu.size() / 16384.0) + 1) {
       arrIMU.poses.push_back(poses_imu.at(i));
   }

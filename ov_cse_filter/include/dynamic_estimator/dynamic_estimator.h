@@ -199,6 +199,9 @@ public:
   bool initialized_ = false;
   int useMethod_ = 1;
 
+  double abs_position_std;
+  double gps_position_std;
+
   bool disable_gps = false;
 
   std::ofstream outFile_pose;
