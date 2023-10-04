@@ -621,6 +621,13 @@ void DynamicEstimator::r_callback(const geometry_msgs::PointStamped::ConstPtr &m
   // t_I_W(1) += distribution_y_(generator_);
   // t_I_W(2) += distribution_z_(generator_);
 
+  double dis = (t_I_W - t_gps).norm();
+  if (dis > 0.5)
+  {
+    disable_gps = false;
+    return;
+  }
+
   meas_pose.r = t_I_W.cast<flt>();
   meas_pose.cov = consts_.eye3 * std::pow(position_sigma, 2);
 
@@ -655,11 +662,6 @@ void DynamicEstimator::r_callback(const geometry_msgs::PointStamped::ConstPtr &m
 
 void DynamicEstimator::gps_r_callback(const nav_msgs::Odometry::ConstPtr &msg)
 {
-  if (disable_gps)
-  {
-    return;
-  }
-
   MeasPose meas_pose;
   meas_pose.t = msg->header.stamp.toSec();
   Eigen::Matrix<double, 3, 1> t_I_W;
@@ -677,6 +679,13 @@ void DynamicEstimator::gps_r_callback(const nav_msgs::Odometry::ConstPtr &msg)
   t_I_W(0) += distribution_x_(generator_);
   t_I_W(1) += distribution_y_(generator_);
   t_I_W(2) += distribution_z_(generator_);
+
+  t_gps = t_I_W;
+
+  if (disable_gps)
+  {
+    return;
+  }
 
   meas_pose.r = t_I_W.cast<flt>();
   meas_pose.cov = consts_.eye3 * std::pow(position_sigma, 2);

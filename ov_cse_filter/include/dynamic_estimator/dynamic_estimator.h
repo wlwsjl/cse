@@ -203,6 +203,7 @@ public:
   double gps_position_std;
 
   bool disable_gps = false;
+  Eigen::Matrix<double, 3, 1> t_gps;
 
   std::ofstream outFile_pose;
   
