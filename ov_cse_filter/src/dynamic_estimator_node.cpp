@@ -27,7 +27,6 @@ int main(int argc, char *argv[]) {
 
   estimator.pub_pose = nh.advertise<geometry_msgs::PoseStamped>(topic_pub_pose, 10);
   estimator.pub_pathimu = nh.advertise<nav_msgs::Path>(topic_pub_path, 10);
-  // estimator.outFile_pose.open("/home/junlin/GNSS/eval/stamped_traj_estimate.txt");
 
   estimator.sub_imu_  = nh.subscribe(topic_imu,  10,&DynamicEstimator::input_callback,  &estimator);
   estimator.sub_pos_ = nh.subscribe(topic_pos, 10,&DynamicEstimator::r_callback, &estimator);

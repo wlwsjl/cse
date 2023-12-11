@@ -140,6 +140,8 @@ struct StateWithCov
 struct Consts
 {
   // often used constants
+  mat3 R_BtoI;
+  string frame_id = "optitrack";
 
   // process model covariance
   Eigen::Matrix<flt,Qx_Dim,Qx_Dim> Qx;
@@ -181,7 +183,7 @@ public:
   std::vector<geometry_msgs::PoseStamped> poses_imu;
   void input_callback(const sensor_msgs::Imu::ConstPtr &msg);
   void r_callback(const geometry_msgs::PointStamped::ConstPtr &msg);
-  void gps_r_callback(const nav_msgs::Odometry::ConstPtr &msg);
+  void gps_r_callback(const geometry_msgs::PoseStamped::ConstPtr &msg);
   void signal_callback(const std_msgs::Bool::ConstPtr &msg);
   bool sync_packages(MeasureGroup &meas);
   void process_packages(MeasureGroup &meas);
@@ -206,6 +208,8 @@ public:
   Eigen::Matrix<double, 3, 1> t_gps;
 
   std::ofstream outFile_pose;
+  std::ofstream outFile_gt;
+  bool save_traj = false;
   
 private:
   // estimator member function to initialize, predict and update

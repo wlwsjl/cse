@@ -37,6 +37,20 @@ void DynamicEstimator::onInit(const ros::NodeHandle &nh)
   consts_.Qx.block<3, 3>(6, 6) = consts_.eye3*std::pow(acc_noise, 2);
   consts_.Qx.block<3, 3>(9, 9) = consts_.eye3*std::pow(acc_bias_noise, 2);
 
+  // read attitude of pose sensor and IMU
+  std::vector<flt> R_temp;
+  nh.param("R_BtoI", R_temp, std::vector<flt>(9,1));
+  consts_.R_BtoI = Eigen::Map<Eigen::Matrix<flt,3,3,Eigen::RowMajor> >(&R_temp[0]);
+
+  std::string frame_id;
+  nh.param<std::string>("frame_id", consts_.frame_id, "optitrack");
+
+  if (save_traj)
+  {
+    outFile_pose.open("/home/junlin/Junlin/eval/result/lab_exp/stamped_traj_estimate.txt");
+    outFile_gt.open("/home/junlin/Junlin/eval/result/lab_exp/stamped_groundtruth.txt");
+  }
+
   init_vars_.bg = vec3::Zero();
   init_vars_.v = vec3::Zero();
   init_vars_.ba = vec3::Zero();
@@ -592,7 +606,6 @@ void DynamicEstimator::input_callback(const sensor_msgs::Imu::ConstPtr &msg)
     }
     // publish updated estimates
     publishEstimates(state_);
-    // outFile_pose << std::fixed << std::setprecision(6) << state_.t << " " << state_.X.r(0) << " " << state_.X.r(1) << " " << state_.X.r(2) << " " << std::endl;
   }
 }
 
@@ -660,14 +673,14 @@ void DynamicEstimator::r_callback(const geometry_msgs::PointStamped::ConstPtr &m
   }
 }
 
-void DynamicEstimator::gps_r_callback(const nav_msgs::Odometry::ConstPtr &msg)
+void DynamicEstimator::gps_r_callback(const geometry_msgs::PoseStamped::ConstPtr &msg)
 {
   MeasPose meas_pose;
   meas_pose.t = msg->header.stamp.toSec();
   Eigen::Matrix<double, 3, 1> t_I_W;
-  t_I_W(0) = msg->pose.pose.position.x;
-  t_I_W(1) = msg->pose.pose.position.y;
-  t_I_W(2) = msg->pose.pose.position.z;
+  t_I_W(0) = msg->pose.position.x;
+  t_I_W(1) = msg->pose.position.y;
+  t_I_W(2) = msg->pose.position.z;
 
   std::random_device device_random_;
   std::default_random_engine generator_(device_random_());
@@ -690,6 +703,12 @@ void DynamicEstimator::gps_r_callback(const nav_msgs::Odometry::ConstPtr &msg)
   meas_pose.r = t_I_W.cast<flt>();
   meas_pose.cov = consts_.eye3 * std::pow(position_sigma, 2);
 
+  quat q;
+  q.x() = msg->pose.orientation.x;
+  q.y() = msg->pose.orientation.y;
+  q.z() = msg->pose.orientation.z;
+  q.w() = msg->pose.orientation.w;
+
   if (initialized_)
   {
     // update state with either EKF or UKF
@@ -709,9 +728,22 @@ void DynamicEstimator::gps_r_callback(const nav_msgs::Odometry::ConstPtr &msg)
     }
     // publish updated estimates
     publishEstimates(state_);
+
+    if (save_traj)
+    {
+      outFile_pose << std::fixed << std::setprecision(6) << state_.t << " " << state_.X.r(0) << " " << state_.X.r(1) << " " << state_.X.r(2) << " " 
+              << state_.X.q.x() << " " << state_.X.q.y() << " " << state_.X.q.z() << " " << state_.X.q.w() << " " << std::endl;
+    
+      quat new_q(q.toRotationMatrix() * consts_.R_BtoI.transpose());
+      outFile_gt << std::fixed << std::setprecision(6) << msg->header.stamp.toSec() << " " << msg->pose.position.x << " " << msg->pose.position.y << " " << msg->pose.position.z << " " 
+                  << new_q.x() << " " << new_q.y() << " " << new_q.z() << " " << new_q.w() << " " << std::endl;
+    }
   }
   else
   {
+    quat new_q(q.toRotationMatrix() * consts_.R_BtoI.transpose());
+    init_vars_.q   = new_q;
+
     init_vars_.t = meas_pose.t;
     init_vars_.r   = meas_pose.r;
     init_vars_.P0.block(r_index,r_index,r_dim,r_dim) = meas_pose.cov.block(0,0,3,3);
@@ -733,14 +765,16 @@ void DynamicEstimator::publishEstimates(const StateWithCov &estimate)
   // Append to our pose vector
   geometry_msgs::PoseStamped posetemp;
   posetemp.header.stamp = ros::Time().fromSec(estimate.t);
-  posetemp.header.frame_id = "map";
+  posetemp.header.frame_id = consts_.frame_id;
   posetemp.pose.position.x = estimate.X.r(0);
   posetemp.pose.position.y = estimate.X.r(1);
   posetemp.pose.position.z = estimate.X.r(2);
-  posetemp.pose.orientation.x = estimate.X.q.x();
-  posetemp.pose.orientation.y = estimate.X.q.y();
-  posetemp.pose.orientation.z = estimate.X.q.z();
-  posetemp.pose.orientation.w = estimate.X.q.w();
+
+  quat q(estimate.X.q.toRotationMatrix() * consts_.R_BtoI);
+  posetemp.pose.orientation.x = q.x();
+  posetemp.pose.orientation.y = q.y();
+  posetemp.pose.orientation.z = q.z();
+  posetemp.pose.orientation.w = q.w();
   pub_pose.publish(posetemp);
 
   poses_imu.push_back(posetemp);
@@ -750,7 +784,7 @@ void DynamicEstimator::publishEstimates(const StateWithCov &estimate)
   // NOTE: https://github.com/ros-visualization/rviz/issues/1107
   nav_msgs::Path arrIMU;
   arrIMU.header.stamp = posetemp.header.stamp;
-  arrIMU.header.frame_id = "map";
+  arrIMU.header.frame_id = consts_.frame_id;
   for (size_t i = 0; i < poses_imu.size(); i += std::floor((double)poses_imu.size() / 16384.0) + 1) {
       arrIMU.poses.push_back(poses_imu.at(i));
   }
