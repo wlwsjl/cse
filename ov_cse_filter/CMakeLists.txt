@@ -7,12 +7,15 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 add_definitions(-std=c++11)
 
 find_package(Eigen3 REQUIRED)
+find_package(OpenCV 3 REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
     roscpp
     rosbag
     geometry_msgs
     nav_msgs
     sensor_msgs
+    cv_bridge
+    image_transport
 )
 
 include_directories(
@@ -22,7 +25,7 @@ include_directories(
 )
 
 catkin_package(
-    CATKIN_DEPENDS roscpp rosbag geometry_msgs nav_msgs sensor_msgs
+    CATKIN_DEPENDS roscpp rosbag geometry_msgs nav_msgs sensor_msgs cv_bridge image_transport
     DEPENDS EIGEN3
 )
 
@@ -52,3 +55,6 @@ target_link_libraries(message_handler ${catkin_LIBRARIES})
 
 add_executable(sub_pose  src/sub_pose.cpp)
 target_link_libraries(sub_pose ${catkin_LIBRARIES})
+
+add_executable(detector  src/detector.cpp)
+target_link_libraries(detector ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${EIGEN_LIBS})

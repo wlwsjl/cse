@@ -9,7 +9,13 @@ imu:
   accelerometer_noise_density: 1.0e-1  # [ m / s^2 / sqrt(Hz) ]   ( accel "white noise" )
   accelerometer_random_walk: 1.0e-2    # [ m / s^3 / sqrt(Hz) ].  ( accel bias diffusion )
 
-R_BtoI: [-0.16814, 0.985721, -0.00909486, 0.00628673, -0.00815375, -0.999947, -0.985743, -0.168189, -0.00482599]
+# table dataset
+# R_BtoI: [-0.16814, 0.985721, -0.00909486, 0.00628673, -0.00815375, -0.999947, -0.985743, -0.168189, -0.00482599]
+# lab mavros dataset
+R_BtoI: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+
+# traj evaluation
+time_offset_BtoI: 1.36
 
 # UKF tuning parameters
 UKF:

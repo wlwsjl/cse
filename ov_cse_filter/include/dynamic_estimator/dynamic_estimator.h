@@ -142,6 +142,7 @@ struct Consts
   // often used constants
   mat3 R_BtoI;
   string frame_id = "optitrack";
+  flt time_offset_BtoI;
 
   // process model covariance
   Eigen::Matrix<flt,Qx_Dim,Qx_Dim> Qx;

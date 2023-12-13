@@ -41,10 +41,14 @@ void DynamicEstimator::onInit(const ros::NodeHandle &nh)
   std::vector<flt> R_temp;
   nh.param("R_BtoI", R_temp, std::vector<flt>(9,1));
   consts_.R_BtoI = Eigen::Map<Eigen::Matrix<flt,3,3,Eigen::RowMajor> >(&R_temp[0]);
+  double time_offset_BtoI;
+  nh.param("time_offset_BtoI", time_offset_BtoI, 0.0);
+  consts_.time_offset_BtoI = flt(time_offset_BtoI);
 
   std::string frame_id;
   nh.param<std::string>("frame_id", consts_.frame_id, "optitrack");
 
+  save_traj = true;
   if (save_traj)
   {
     outFile_pose.open("/home/junlin/Junlin/eval/result/lab_exp/stamped_traj_estimate.txt");
@@ -735,7 +739,7 @@ void DynamicEstimator::gps_r_callback(const geometry_msgs::PoseStamped::ConstPtr
               << state_.X.q.x() << " " << state_.X.q.y() << " " << state_.X.q.z() << " " << state_.X.q.w() << " " << std::endl;
     
       quat new_q(q.toRotationMatrix() * consts_.R_BtoI.transpose());
-      outFile_gt << std::fixed << std::setprecision(6) << msg->header.stamp.toSec() << " " << msg->pose.position.x << " " << msg->pose.position.y << " " << msg->pose.position.z << " " 
+      outFile_gt << std::fixed << std::setprecision(6) << msg->header.stamp.toSec() + consts_.time_offset_BtoI << " " << msg->pose.position.x << " " << msg->pose.position.y << " " << msg->pose.position.z << " " 
                   << new_q.x() << " " << new_q.y() << " " << new_q.z() << " " << new_q.w() << " " << std::endl;
     }
   }
