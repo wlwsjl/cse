@@ -1,0 +1,17 @@
+<launch>
+    
+    <!-- <node pkg="ov_cse_filter" type="pos_from_py" name="pos_from_py" output="screen"> -->
+    <node pkg="ov_cse_filter" type="detector_global" name="detector_global" output="screen">
+        <rosparam file="$(find ov_cse_filter)/config/cam_params.yaml"/>
+        <param name="topic_camera_info" type="string" value="/d455/color/camera_info"/>
+        <param name="topic_image" type="string" value="/d455/color/image_raw/compressed"/>
+        <param name="topic_gt_uav_a" type="string" value="/vrpn_client_node/uav_a/pose"/>
+        <param name="topic_gt_uav_b" type="string" value="/vrpn_client_node/uav_b/pose"/>
+
+        <param name="topic_pub_path" type="string" value="/path"/>
+        <param name="topic_pub_pos" type="string" value="/detection_point_stamped"/>
+    </node>
+
+    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find ov_cse_filter)/config/detector.rviz" />
+
+</launch>

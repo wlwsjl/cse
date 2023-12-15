@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
     sensor_msgs
     cv_bridge
     image_transport
+    message_generation
 )
 
 include_directories(
@@ -24,8 +25,20 @@ include_directories(
     ${EIGEN3_INCLUDE_DIR}
 )
 
+add_message_files(
+    FILES
+    PointId.msg
+    PointIdArray.msg
+)
+
+generate_messages(
+    DEPENDENCIES
+    std_msgs
+    geometry_msgs
+)
+
 catkin_package(
-    CATKIN_DEPENDS roscpp rosbag geometry_msgs nav_msgs sensor_msgs cv_bridge image_transport
+    CATKIN_DEPENDS roscpp rosbag geometry_msgs nav_msgs sensor_msgs cv_bridge image_transport message_runtime
     DEPENDS EIGEN3
 )
 
@@ -58,3 +71,9 @@ target_link_libraries(sub_pose ${catkin_LIBRARIES})
 
 add_executable(detector  src/detector.cpp)
 target_link_libraries(detector ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${EIGEN_LIBS})
+
+add_executable(detector_global  src/detector_global.cpp)
+target_link_libraries(detector_global ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${EIGEN_LIBS})
+
+add_executable(pos_from_py  src/pos_from_py.cpp)
+target_link_libraries(pos_from_py ${catkin_LIBRARIES} ${EIGEN_LIBS})
