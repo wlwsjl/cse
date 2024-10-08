@@ -69,6 +69,9 @@ target_link_libraries(message_handler ${catkin_LIBRARIES})
 add_executable(sub_pose  src/sub_pose.cpp)
 target_link_libraries(sub_pose ${catkin_LIBRARIES})
 
+add_executable(sub_gps  src/sub_gps.cpp)
+target_link_libraries(sub_gps ${catkin_LIBRARIES})
+
 add_executable(detector  src/detector.cpp)
 target_link_libraries(detector ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${EIGEN_LIBS})
 
